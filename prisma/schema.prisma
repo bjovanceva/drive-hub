@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model User {
+  id                 Int              @id @default(autoincrement())
+  name               String
+  email              String           @unique
+  password           String
+  role               UserRole
+  
+  drivingSchoolId    Int?
+  studentIn          DrivingSchool?   @relation("StudentSchool", fields: [drivingSchoolId], references: [id])
+
+  instructorSchoolId Int?
+  instructorIn       DrivingSchool?   @relation("InstructorSchool", fields: [instructorSchoolId], references: [id])
+
+  vehicle            Vehicle[]
+
+  applications       Application[]
+}
+
+model DrivingSchool {
+  id           Int            @id @default(autoincrement())
+  name         String
+  email        String         @unique
+  description  String?
+  phone        String
+  address      String
+  createdAt    DateTime
+
+  students     User[]         @relation("StudentSchool")
+  instructors  User[]         @relation("InstructorSchool")
+  categories   Category[]
+  applications Application[]
+  vehicles     Vehicle[]
+}
+
+model Category {
+  id                 Int        @id @default(autoincrement())
+  name               String     @unique
+  price              Decimal
+  theoryLessons      Int
+  practicalLessons   Int
+  minimumAge         Int
+
+  drivingSchools     DrivingSchool[]
+  applications       Application[]
+}
+
+model Vehicle {
+  id                Int           @id @default(autoincrement())
+  registration      String        @unique
+  brand             String
+  model             String
+  year              Int
+
+  drivingSchoolId   Int 
+  drivingSchool     DrivingSchool @relation(fields: [drivingSchoolId], references: [id])
+
+  instructorId      Int?         
+  instructor        User?         @relation(fields: [instructorId], references: [id])
+}
+
+model Application {
+  id              Int                @id @default(autoincrement())
+  status          ApplicationStatus  @default(PENDING)
+  startedAt       DateTime           @default(now())
+
+  userId          Int
+  user            User               @relation(fields: [userId], references: [id])
+
+  drivingSchoolId Int
+  drivingSchool   DrivingSchool      @relation(fields: [drivingSchoolId], references: [id])
+
+  categoryId      Int
+  category        Category           @relation(fields: [categoryId], references: [id])
+
+  @@unique([userId, drivingSchoolId, categoryId])
+}
+
