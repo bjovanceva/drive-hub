@@ -14,7 +14,6 @@ datasource db {
 
 enum UserRole {
   STUDENT
-  INSTRUCTOR
   ADMIN
 }
 
@@ -26,28 +25,34 @@ enum ApplicationStatus {
 }
 
 model User {
-  id                Int       @id @default(autoincrement())
-  name              String
-  email             String    @unique
-  password          String
-  role              UserRole
+  id                 Int              @id @default(autoincrement())
+  name               String
+  email              String           @unique
+  password           String
+  role               UserRole
   
-  drivingSchool     DrivingSchool @relation(fields: [drivingSchoolId], references: [id])
-  drivingSchoolId   Int
+  drivingSchoolId    Int?
+  studentIn          DrivingSchool?   @relation("StudentSchool", fields: [drivingSchoolId], references: [id])
 
-  applications      Application[]
+  instructorSchoolId Int?
+  instructorIn       DrivingSchool?   @relation("InstructorSchool", fields: [instructorSchoolId], references: [id])
+
+  vehicle            Vehicle[]
+
+  applications       Application[]
 }
 
 model DrivingSchool {
-  id           Int        @id @default(autoincrement())
+  id           Int            @id @default(autoincrement())
   name         String
-  email        String     @unique
+  email        String         @unique
   description  String?
   phone        String
   address      String
   createdAt    DateTime
 
-  users        User[]
+  students     User[]         @relation("StudentSchool")
+  instructors  User[]         @relation("InstructorSchool")
   categories   Category[]
   applications Application[]
   vehicles     Vehicle[]
@@ -61,33 +66,37 @@ model Category {
   practicalLessons   Int
   minimumAge         Int
 
-  drivingSchools DrivingSchool[]
-  applications Application[]
+  drivingSchools     DrivingSchool[]
+  applications       Application[]
 }
 
 model Vehicle {
-  id              Int           @id @default(autoincrement())
-  brand            String
-  model           String
-  year            Int
-  registration    String        @unique
+  id                Int           @id @default(autoincrement())
+  registration      String        @unique
+  brand             String
+  model             String
+  year              Int
 
-  drivingSchool   DrivingSchool @relation(fields: [drivingSchoolId], references: [id])
-  drivingSchoolId Int
+  drivingSchoolId   Int 
+  drivingSchool     DrivingSchool @relation(fields: [drivingSchoolId], references: [id])
+
+  instructorId      Int?         
+  instructor        User?         @relation(fields: [instructorId], references: [id])
 }
 
 model Application {
-  id              Int           @id @default(autoincrement())
+  id              Int                @id @default(autoincrement())
   status          ApplicationStatus  @default(PENDING)
   startedAt       DateTime           @default(now())
 
   userId          Int
-  drivingSchoolId Int
-  categoryId      Int
+  user            User               @relation(fields: [userId], references: [id])
 
-  user            User              @relation(fields: [userId], references: [id])
-  drivingSchool   DrivingSchool     @relation(fields: [drivingSchoolId], references: [id])
-  category        Category          @relation(fields: [categoryId], references: [id])
+  drivingSchoolId Int
+  drivingSchool   DrivingSchool      @relation(fields: [drivingSchoolId], references: [id])
+
+  categoryId      Int
+  category        Category           @relation(fields: [categoryId], references: [id])
 
   @@unique([userId, drivingSchoolId, categoryId])
 }
