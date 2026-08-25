@@ -1,3 +1,3 @@
-export const useUseAuth = () => {
+export const useAuth = () => {
   return ref()
 }
