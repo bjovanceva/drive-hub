@@ -1,4 +1,42 @@
 
+:root {
+  --dh-color-bg-page: #f1f3f2;
+  --dh-color-bg-inverse: #080a0d;
+  --dh-color-bg-surface: #ffffff;
+  --dh-color-bg-surface-dark: #11151a;
+  --dh-color-bg-accent: #e8452e;
+  --dh-color-bg-accent-hover: #c93624;
+  --dh-color-bg-status: #c9f24d;
+  --dh-color-text-primary: #080a0d;
+  --dh-color-text-secondary: #3c454f;
+  --dh-color-text-inverse: #ffffff;
+  --dh-color-border-default: #c8ced4;
+  --dh-color-border-strong: #080a0d;
+  --dh-steel-300: #c8ced4;
+  --dh-radius-none: 0;
+  --dh-stroke-thin: 1px;
+  --dh-space-4: 1rem;
+  --dh-space-6: 1.5rem;
+  color-scheme: light;
+  font-synthesis: none;
+}
+
+html {
+  min-width: 20rem;
+  scroll-behavior: smooth;
+}
+
 body {
-    display: flex;
+  min-width: 20rem;
+  margin: 0;
+  background: var(--dh-color-bg-page);
+  color: var(--dh-color-text-primary);
+  font-family: 'Inter', sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }

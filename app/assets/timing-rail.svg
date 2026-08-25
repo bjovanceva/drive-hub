@@ -1,0 +1,18 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="1248" height="20" viewBox="0 0 1248 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Timing Rail">
+<g id="Vector">
+<path d="M0 9H1248Z" fill="black"/>
+<path d="M0 9H1248" stroke="#3C454F" stroke-width="2"/>
+</g>
+<path id="Vector_2" d="M0 4H130L118 16H0V4Z" fill="#E8452E"/>
+<path id="Vector_3" d="M1070 4H1248V16H1058L1070 4Z" fill="#C9F24D"/>
+<g id="Vector_4">
+<path d="M597 3L585 17Z" fill="black"/>
+<path d="M597 3L585 17" stroke="#F1F3F2" stroke-width="2"/>
+</g>
+<g id="Vector_5" opacity="0.35">
+<path d="M618 3L606 17Z" fill="black"/>
+<path d="M618 3L606 17" stroke="#F1F3F2" stroke-width="2"/>
+</g>
+</g>
+</svg>

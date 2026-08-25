@@ -1,0 +1,29 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="344" height="152" viewBox="0 0 344 152" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Track Visual" clip-path="url(#clip0_0_4)">
+<path id="Vector" d="M344 0H0V152H344V0Z" fill="#11151A"/>
+<path id="Vector_2" d="M0 122L101 0H151L50 122H0Z" fill="#E8452E"/>
+<path id="Vector_3" d="M194 152L312 0H344V45L259 152H194Z" fill="#3C454F"/>
+<g id="Vector_4" opacity="0.55">
+<path d="M98 152L216 0Z" fill="black"/>
+<path d="M98 152L216 0" stroke="#F1F3F2" stroke-width="2"/>
+</g>
+<g id="Vector_5" opacity="0.2">
+<path d="M115 152L233 0Z" fill="black"/>
+<path d="M115 152L233 0" stroke="#F1F3F2" stroke-width="2"/>
+</g>
+<path id="Vector_6" d="M285 124H344V152H257L285 124Z" fill="#C9F24D"/>
+<g id="Vector_7">
+<path d="M20 24H112Z" fill="black"/>
+<path d="M20 24H112" stroke="#F1F3F2" stroke-width="2"/>
+</g>
+<g id="Vector_8" opacity="0.4">
+<path d="M20 31H76Z" fill="black"/>
+<path d="M20 31H76" stroke="#F1F3F2" stroke-width="2"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_4">
+<rect width="344" height="152" fill="white"/>
+</clipPath>
+</defs>
+</svg>
