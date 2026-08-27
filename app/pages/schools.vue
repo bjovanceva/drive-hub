@@ -72,6 +72,10 @@ function handleSearch(filters: { location: string, category: string }) {
 function clearFilters() {
   void navigateTo('/schools')
 }
+
+function retryFetch() {
+  void refresh()
+}
 </script>
 
 <template>
@@ -127,7 +131,7 @@ function clearFilters() {
         <div v-else-if="error" class="dh-schools-page__state">
           <strong>The grid is temporarily offline.</strong>
           <span>We couldn’t load the schools right now.</span>
-          <button type="button" @click="refresh">Try again</button>
+          <button type="button" @click="retryFetch">Try again</button>
         </div>
 
         <div v-else-if="schools.length" class="dh-schools-page__grid">
