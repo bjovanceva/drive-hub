@@ -3,7 +3,7 @@ export interface SelectOptionPresentationDto {
   label: string
 }
 
-export interface HomeSearchPresentationDto {
+export interface SchoolSearchPresentationDto {
   locations: SelectOptionPresentationDto[]
   categories: SelectOptionPresentationDto[]
   defaultLocation: string
@@ -49,6 +49,8 @@ export interface SectionHeadingPresentationDto {
   eyebrow: string
   title: string
   description?: string
+  actionLabel?: string
+  actionTo?: string
 }
 
 export interface HomePagePresentationDto {
@@ -57,14 +59,12 @@ export interface HomePagePresentationDto {
     titleLines: string[]
     description: string
     proof: string
-    search: HomeSearchPresentationDto
+    search: SchoolSearchPresentationDto
   }
   network: SectionHeadingPresentationDto & {
     stats: StatTilePresentationDto[]
   }
   featuredSchools: SectionHeadingPresentationDto & {
-    actionLabel: string
-    actionTo: string
     schools: SchoolCardPresentationDto[]
   }
   licenceCategories: SectionHeadingPresentationDto & {
