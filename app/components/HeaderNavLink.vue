@@ -55,7 +55,7 @@ const props = defineProps<{
 }
 
 .dh-header-link__shape--bottom {
-  clip-path: polygon(70% 0, 100% 0, 92% 100%, 40% 100%);
+  clip-path: polygon(69% 0, 100% 0, 92% 100%, 39% 100%);
   transform: translate3d(0, 0.875rem, 0);
 }
 

@@ -25,7 +25,7 @@ withDefaults(defineProps<{
       {{ description }}
     </p>
 
-    <NuxtLink v-else-if="actionLabel" class="dh-section-heading__action" :to="actionTo">
+    <NuxtLink v-if="actionLabel" class="dh-section-heading__action" :to="actionTo">
       {{ actionLabel }}
     </NuxtLink>
   </header>
@@ -103,8 +103,13 @@ withDefaults(defineProps<{
 }
 
 .dh-section-heading--dark h2,
-.dh-section-heading--dark .dh-section-heading__description {
+.dh-section-heading--dark .dh-section-heading__description,
+.dh-section-heading--dark .dh-section-heading__action {
   color: var(--dh-color-text-inverse, #ffffff);
+}
+
+.dh-section-heading--dark .dh-section-heading__action:hover {
+  color: var(--dh-color-bg-accent, #e8452e);
 }
 
 @media (max-width: 48rem) {

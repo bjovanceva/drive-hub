@@ -88,7 +88,6 @@ const {
 
 .dh-school-card--motion-ready:not(.dh-school-card--visible) {
   opacity: 0;
-  filter: blur(0.375rem);
   transform: translate3d(-8rem, 0, 0) skewX(9deg) scaleX(0.88);
 }
 
@@ -207,19 +206,16 @@ const {
 @keyframes dh-school-lightspeed-in {
   0% {
     opacity: 0;
-    filter: blur(0.375rem);
     transform: translate3d(-8rem, 0, 0) skewX(9deg) scaleX(0.88);
   }
 
   62% {
     opacity: 1;
-    filter: blur(0);
     transform: translate3d(0.75rem, 0, 0) skewX(-1.5deg) scaleX(1.02);
   }
 
   100% {
     opacity: 1;
-    filter: blur(0);
     transform: translate3d(0, 0, 0) skewX(0) scaleX(1);
   }
 }
@@ -229,7 +225,6 @@ const {
   .dh-school-card--motion-ready:not(.dh-school-card--visible),
   .dh-school-card--motion-ready.dh-school-card--visible {
     opacity: 1;
-    filter: none;
     transform: none;
     animation: none;
   }

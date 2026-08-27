@@ -13,12 +13,12 @@ const props = withDefaults(defineProps<{
   applicationTo?: string
 }>(), {
   navigation: () => [
-    { label: 'Schools', to: '#schools' },
-    { label: 'Licences', to: '#licences' },
-    { label: 'How it works', to: '#how-it-works' }
+    { label: 'Schools', to: '/schools' },
+    { label: 'Licences', to: '/categories' },
+    { label: 'How it works', to: '/#how-it-works' }
   ],
   signInTo: '#sign-in',
-  applicationTo: '#apply'
+  applicationTo: '/#apply'
 })
 
 const route = useRoute()
