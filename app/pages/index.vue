@@ -3,7 +3,7 @@ import ctaRace from '~/assets/cta-race.svg'
 import heroTrack from '~/assets/hero-track.svg'
 import timingRail from '~/assets/timing-rail.svg'
 import { defaultHomePageData } from '~/data/home'
-import type { HomeSearchPresentationDto, SelectOptionPresentationDto } from '~/types/presentation/home'
+import type { SchoolSearchPresentationDto, SelectOptionPresentationDto } from '~/types/presentation/home'
 
 definePageMeta({
   layout: 'default'
@@ -27,7 +27,7 @@ function validQueryValue(
     : fallback
 }
 
-const searchData = computed<HomeSearchPresentationDto>(() => ({
+const searchData = computed<SchoolSearchPresentationDto>(() => ({
   ...pageData.hero.search,
   defaultLocation: validQueryValue(
     route.query.location,
@@ -41,9 +41,9 @@ const searchData = computed<HomeSearchPresentationDto>(() => ({
   )
 }))
 
-function handleSearch(filters: { location: string, category: string }) {
+function handleSchoolSearch(filters: { location: string, category: string }) {
   void navigateTo({
-    path: route.path,
+    path: '/schools',
     query: {
       ...route.query,
       location: filters.location,
@@ -86,7 +86,7 @@ function handleSearch(filters: { location: string, category: string }) {
           >
         </div>
 
-        <SearchPanel :data="searchData" @search="handleSearch" />
+        <SearchPanel :data="searchData" @search="handleSchoolSearch" />
       </div>
     </section>
 
@@ -149,6 +149,8 @@ function handleSearch(filters: { location: string, category: string }) {
           :eyebrow="pageData.licenceCategories.eyebrow"
           :title="pageData.licenceCategories.title"
           :description="pageData.licenceCategories.description"
+          :action-label="pageData.licenceCategories.actionLabel"
+          :action-to="pageData.licenceCategories.actionTo"
         />
 
         <img class="dh-home__timing-rail" :src="timingRail" alt="" width="1248" height="20">
