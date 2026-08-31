@@ -41,7 +41,7 @@ export const defaultHomePageData: HomePagePresentationDto = {
     eyebrow: 'Marketplace / Featured',
     title: 'Choose your pit crew.',
     actionLabel: 'View all schools →',
-    actionTo: '#schools',
+    actionTo: '/schools',
     schools: [
       {
         id: 'apex-drive',
@@ -76,6 +76,8 @@ export const defaultHomePageData: HomePagePresentationDto = {
     eyebrow: 'Licences / Select your class',
     title: 'Pick your machine.',
     description: 'From first rides to heavy vehicles, compare programmes by category and move straight to the right schools.',
+    actionLabel: 'View all categories →',
+    actionTo: '/categories',
     categories: [
       { id: 'licence-a', code: 'A', label: 'Motorcycle', meta: '12 practical / 8 theory', to: '#licence-a' },
       { id: 'licence-b', code: 'B', label: 'Passenger car', meta: '18 practical / 12 theory', to: '#licence-b' },

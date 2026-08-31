@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import type { HomeSearchPresentationDto } from '~/types/presentation/home'
+import type { SchoolSearchPresentationDto } from '~/types/presentation/home'
 
 const props = defineProps<{
-  data: HomeSearchPresentationDto
+  data: SchoolSearchPresentationDto
 }>()
 
 const emit = defineEmits<{
@@ -11,6 +11,14 @@ const emit = defineEmits<{
 
 const location = ref(props.data.defaultLocation)
 const category = ref(props.data.defaultCategory)
+
+watch(() => props.data.defaultLocation, value => {
+  location.value = value
+})
+
+watch(() => props.data.defaultCategory, value => {
+  category.value = value
+})
 
 function submitSearch() {
   emit('search', {
@@ -23,23 +31,25 @@ function submitSearch() {
 <template>
   <form class="dh-search-panel" data-node-id="20:2" @submit.prevent="submitSearch">
     <label class="dh-search-panel__field">
-      <span>Location</span>
-      <select v-model="location" name="location">
-        <option v-for="option in data.locations" :key="option.value" :value="option.value">
-          {{ option.label }}
-        </option>
-      </select>
+      <span class="dh-search-panel__label"><span>Location</span><small>Select city</small></span>
+      <span class="dh-search-panel__select-wrap">
+        <select v-model="location" name="location">
+          <option v-for="option in data.locations" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+        <span class="dh-search-panel__chevron" aria-hidden="true">⌄</span>
+      </span>
     </label>
 
     <span class="dh-search-panel__divider" aria-hidden="true" />
 
     <label class="dh-search-panel__field dh-search-panel__field--category">
-      <span>Licence category</span>
-      <select v-model="category" name="category">
-        <option v-for="option in data.categories" :key="option.value" :value="option.value">
-          {{ option.label }}
-        </option>
-      </select>
+      <span class="dh-search-panel__label"><span>Licence category</span><small>Select class</small></span>
+      <span class="dh-search-panel__select-wrap">
+        <select v-model="category" name="category">
+          <option v-for="option in data.categories" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+        <span class="dh-search-panel__chevron" aria-hidden="true">⌄</span>
+      </span>
     </label>
 
     <span class="dh-search-panel__spacer" aria-hidden="true" />
@@ -65,7 +75,7 @@ function submitSearch() {
   width: 16.25rem;
   flex: 0 1 16.25rem;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
   color: var(--dh-color-text-secondary, #3c454f);
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 0.875rem;
@@ -75,19 +85,40 @@ function submitSearch() {
   text-transform: uppercase;
 }
 
+.dh-search-panel__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.dh-search-panel__label small {
+  color: #68727d;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.025rem;
+}
+
 .dh-search-panel__field--category {
   width: 20.625rem;
   flex-basis: 20.625rem;
 }
 
+.dh-search-panel__select-wrap {
+  position: relative;
+  display: block;
+}
+
 .dh-search-panel select {
   width: 100%;
-  padding: 0;
-  border: 0;
+  min-height: 3.5rem;
+  padding: 0.625rem 3.25rem 0.625rem 0.875rem;
+  border: 1px solid var(--dh-color-border-strong, #080a0d);
   border-radius: 0;
   outline: 0;
   appearance: none;
-  background: transparent;
+  background: var(--dh-color-bg-page, #f1f3f2);
   color: var(--dh-color-text-primary, #080a0d);
   font: inherit;
   font-size: 1.75rem;
@@ -96,8 +127,27 @@ function submitSearch() {
   cursor: pointer;
 }
 
+.dh-search-panel__chevron {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: grid;
+  width: 2.75rem;
+  height: calc(100% - 2px);
+  border-left: 1px solid var(--dh-color-border-strong, #080a0d);
+  border-right: 1px solid var(--dh-color-border-strong, #080a0d);
+  background: var(--dh-color-bg-status, #c9f24d);
+  color: var(--dh-color-text-primary, #080a0d);
+  font-family: 'Inter', sans-serif;
+  font-size: 1.5rem;
+  line-height: 1;
+  place-items: center;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
 .dh-search-panel select:focus-visible {
-  outline: 2px solid var(--dh-color-bg-status, #c9f24d);
+  outline: 3px solid var(--dh-color-bg-status, #c9f24d);
   outline-offset: 3px;
 }
 

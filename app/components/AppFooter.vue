@@ -7,15 +7,15 @@ const linkGroups = [
   {
     title: 'Explore',
     links: [
-      { label: 'Driving schools', to: '#schools' },
-      { label: 'Licence categories', to: '#licences' },
+      { label: 'Driving schools', to: '/schools' },
+      { label: 'Licence categories', to: '/categories' },
       { label: 'Instructors', to: '#instructors' }
     ]
   },
   {
     title: 'Drive Hub',
     links: [
-      { label: 'How it works', to: '#how-it-works' },
+      { label: 'How it works', to: '/#how-it-works' },
       { label: 'For schools', to: '#for-schools' },
       { label: 'Support', to: '#support' }
     ]
