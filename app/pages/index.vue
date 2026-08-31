@@ -17,6 +17,8 @@ useSeoMeta({
 const route = useRoute()
 const pageData = defaultHomePageData
 
+const { data: schools, error, status } = await useFetch('/api/driving-schools')
+
 function validQueryValue(
   value: unknown,
   options: SelectOptionPresentationDto[],
@@ -123,17 +125,17 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
 
         <div class="dh-home__schools">
           <div
-            v-for="(school, schoolIndex) in pageData.featuredSchools.schools"
-            :id="school.id"
+            v-for="(school, schoolIndex) in schools"
+            :id="String(school.id)"
             :key="school.id"
           >
             <SchoolCard
-              :school-name="school.schoolName"
-              :location="school.location"
-              :licence-type="school.licenceType"
-              :price="school.price"
-              :verified="school.verified"
-              :to="school.to"
+              :school-name="school.name"
+              :location="school.address"
+              licence-type="B"
+              price="25000"
+              :verified="true"
+              to="happy"
               :reveal-delay="schoolIndex * 120"
             />
           </div>
