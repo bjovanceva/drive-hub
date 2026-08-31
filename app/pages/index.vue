@@ -3,6 +3,7 @@ import ctaRace from '~/assets/cta-race.svg'
 import heroTrack from '~/assets/hero-track.svg'
 import timingRail from '~/assets/timing-rail.svg'
 import { defaultHomePageData } from '~/data/home'
+import { useDrivingSchools } from '~/composables/useDrivingSchools'
 import type { SchoolSearchPresentationDto, SelectOptionPresentationDto } from '~/types/presentation/home'
 
 definePageMeta({
@@ -17,7 +18,10 @@ useSeoMeta({
 const route = useRoute()
 const pageData = defaultHomePageData
 
-const { data: schools, error, status } = await useFetch('/api/driving-schools')
+
+const { getDrivingSchools } = useDrivingSchools();
+const schools = await getDrivingSchools()
+
 
 function validQueryValue(
   value: unknown,
@@ -29,11 +33,15 @@ function validQueryValue(
     : fallback
 }
 
+const { getLocations } = useDrivingSchools()
+const locations = await getLocations()
+
 const searchData = computed<SchoolSearchPresentationDto>(() => ({
   ...pageData.hero.search,
+  locations: locations,
   defaultLocation: validQueryValue(
     route.query.location,
-    pageData.hero.search.locations,
+    locations,
     pageData.hero.search.defaultLocation
   ),
   defaultCategory: validQueryValue(

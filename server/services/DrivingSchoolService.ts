@@ -27,6 +27,7 @@ export class DrivingSchoolService {
   async createDrivingSchool(data: {
     name: string
     email: string
+    location: string
     address: string
     description?: string
     phone: string
@@ -40,5 +41,11 @@ export class DrivingSchoolService {
     }
 
     return this.repository.create(data)
+  }
+
+  async getLocations() {
+    const schools = await this.repository.findLocations()
+
+    return schools.map(school => school.location)
   }
 }

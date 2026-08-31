@@ -8,6 +8,7 @@ export default defineEventHandler(async (event) => {
   return service.createDrivingSchool({
     name: body.name,
     email: body.email,
+    location: body.location,
     address: body.address,
     description: body.description,
     phone: body.phone,

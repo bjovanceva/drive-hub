@@ -14,6 +14,7 @@ export class DrivingSchoolRepository {
   async create(data: {
     name: string
     email: string
+    location: string
     address: string
     description?: string
     phone: string
@@ -28,5 +29,21 @@ export class DrivingSchoolRepository {
     return prisma.drivingSchool.delete({
       where: { id }
     })
+  }
+
+  async findLocations() {
+    return prisma.drivingSchool.findMany({
+      select: {
+        location: true
+      },
+      distinct: ['location'],
+      orderBy: {
+        location: 'asc'
+      }
+    })
+  }
+  
+  async searchByLocationAndCategory(location: string, category: string) {
+    // TO DO
   }
 }

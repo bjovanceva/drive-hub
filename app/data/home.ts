@@ -18,9 +18,22 @@ export const defaultHomePageData: HomePagePresentationDto = {
         { value: 'kumanovo', label: 'Kumanovo' }
       ],
       categories: [
+        { value: 'a1', label: 'A1 - Light motorcycle' },
         { value: 'a', label: 'A — Motorcycle' },
         { value: 'b', label: 'B — Passenger car' },
-        { value: 'c', label: 'C — Heavy vehicle' }
+        { value: 'be', label: 'BE - Category B + heavier trailer' },
+        { value: 'c1', label: 'C1 — Medium vehicle' },
+        { value: 'c1e', label: 'C1E — C1 + trailer' },
+        { value: 'c', label: 'C — Heavy vehicle' },
+        { value: 'ce', label: 'CE — C + trailer' },
+        { value: 'd1', label: 'Smaller bus/minibus' },
+        { value: 'd1e', label: 'D1E — D1 + trailer' },
+        { value: 'd', label: 'D — Bus' },
+        { value: 'de', label: 'DE — D + trailer' },
+        { value: 'e', label: 'E — Articulated vehicle' },
+        { value: 'eb', label: 'EB — E + trailer' },
+        { value: 'f', label: 'F — Tractor and tractor trailer' },
+        { value: 'g', label: 'G — Mobile/working machine' },
       ],
       defaultLocation: 'skopje',
       defaultCategory: 'b',
