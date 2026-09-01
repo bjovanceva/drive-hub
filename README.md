@@ -20,6 +20,30 @@ yarn install
 bun install
 ```
 
+## Database seed
+
+After applying the Prisma migrations and configuring `DATABASE_URL`, seed or
+refresh the 17 licence categories with:
+
+```bash
+npm run db:seed:categories
+```
+
+The command executes [`prisma/seed-categories.sql`](prisma/seed-categories.sql).
+It is idempotent: existing category rows are updated by their unique `code`,
+while missing rows are inserted.
+
+## Driving-school data
+
+Client pages access `/api/driving-schools` through `useDrivingSchools()`. The
+composable exposes reactive fetch state plus `createDrivingSchool(input)` and
+`deleteDrivingSchool(id)` mutations; successful mutations refresh the active
+school query automatically.
+
+The home and school-directory search forms share `useSchoolSearchOptions()`,
+which loads category codes and stored school cities from `/api/search-options`.
+Concrete dropdown choices therefore come from PostgreSQL rather than page data.
+
 ## Development Server
 
 Start the development server on `http://localhost:3000`:

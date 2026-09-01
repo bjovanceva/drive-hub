@@ -1,8 +1,8 @@
 import type { HomePagePresentationDto } from '~/types/presentation/home'
 
 /**
- * Temporary presentation data for the home page.
- * Replace this export with an API-to-presentation mapper when the backend is ready.
+ * Static editorial copy for the home page. Search options and school records
+ * deliberately live outside this object and come from backend composables.
  */
 export const defaultHomePageData: HomePagePresentationDto = {
   hero: {
@@ -54,48 +54,14 @@ export const defaultHomePageData: HomePagePresentationDto = {
     eyebrow: 'Marketplace / Featured',
     title: 'Choose your pit crew.',
     actionLabel: 'View all schools →',
-    actionTo: '/schools',
-    schools: [
-      {
-        id: 'apex-drive',
-        schoolName: 'Apex Drive',
-        location: 'Skopje · Karpoš',
-        licenceType: 'B — Passenger car',
-        price: 'From 28,900 MKD',
-        verified: true,
-        to: '#apex-drive'
-      },
-      {
-        id: 'vector-auto',
-        schoolName: 'Vector Auto',
-        location: 'Skopje · Aerodrom',
-        licenceType: 'A + B — Moto / Car',
-        price: 'From 31,500 MKD',
-        verified: true,
-        to: '#vector-auto'
-      },
-      {
-        id: 'pole-position',
-        schoolName: 'Pole Position',
-        location: 'Tetovo · Centre',
-        licenceType: 'B + C — Car / Truck',
-        price: 'From 27,400 MKD',
-        verified: true,
-        to: '#pole-position'
-      }
-    ]
+    actionTo: '/schools'
   },
   licenceCategories: {
     eyebrow: 'Licences / Select your class',
     title: 'Pick your machine.',
     description: 'From first rides to heavy vehicles, compare programmes by category and move straight to the right schools.',
     actionLabel: 'View all categories →',
-    actionTo: '/categories',
-    categories: [
-      { id: 'licence-a', code: 'A', label: 'Motorcycle', meta: '12 practical / 8 theory', to: '#licence-a' },
-      { id: 'licence-b', code: 'B', label: 'Passenger car', meta: '18 practical / 12 theory', to: '#licence-b' },
-      { id: 'licence-c', code: 'C', label: 'Heavy vehicle', meta: '20 practical / 14 theory', to: '#licence-c' }
-    ]
+    actionTo: '/categories'
   },
   journey: {
     eyebrow: 'Process / Three clean moves',

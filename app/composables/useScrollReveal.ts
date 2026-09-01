@@ -3,6 +3,11 @@ type ScrollRevealOptions = {
   rootMargin?: string
 }
 
+/**
+ * Reveals one element the first time it enters the viewport.
+ * Consumers bind `target` to their root node and use the two state flags to
+ * avoid hiding server-rendered content before client-side motion is ready.
+ */
 export function useScrollReveal(options: ScrollRevealOptions = {}) {
   const target = ref<HTMLElement | null>(null)
   const isMotionReady = ref(false)
@@ -33,6 +38,8 @@ export function useScrollReveal(options: ScrollRevealOptions = {}) {
       observer.observe(target.value)
     }
 
+    // Waiting one frame ensures the browser paints the initial animation state
+    // before the visible class is applied.
     readinessFrame = window.requestAnimationFrame(() => {
       isMotionReady.value = true
     })

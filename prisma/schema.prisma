@@ -50,6 +50,7 @@ model DrivingSchool {
   phone        String
   location     String
   address      String
+  city         String?
   createdAt    DateTime
 
   students     User[]         @relation("StudentSchool")
@@ -61,6 +62,7 @@ model DrivingSchool {
 
 model Category {
   id                 Int        @id @default(autoincrement())
+  code               String?    @unique
   name               String     @unique
   price              Decimal
   theoryLessons      Int
@@ -101,4 +103,3 @@ model Application {
 
   @@unique([userId, drivingSchoolId, categoryId])
 }
-

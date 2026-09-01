@@ -12,6 +12,8 @@ const emit = defineEmits<{
 const location = ref(props.data.defaultLocation)
 const category = ref(props.data.defaultCategory)
 
+// Keep local select state aligned with route-driven defaults when users use
+// browser history or submit a new search without remounting the component.
 watch(() => props.data.defaultLocation, value => {
   location.value = value
 })
@@ -21,6 +23,8 @@ watch(() => props.data.defaultCategory, value => {
 })
 
 function submitSearch() {
+  // Navigation belongs to the parent page; this component only emits the
+  // normalized form selection.
   emit('search', {
     location: location.value,
     category: category.value
