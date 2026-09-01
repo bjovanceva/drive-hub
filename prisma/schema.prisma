@@ -48,7 +48,6 @@ model DrivingSchool {
   email        String         @unique
   description  String?
   phone        String
-  location     String
   address      String
   city         String?
   createdAt    DateTime
