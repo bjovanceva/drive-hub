@@ -52,30 +52,15 @@ export class DrivingSchoolRepository {
     })
   }
 
-  async findByEmail(email: string) {
-    return prisma.drivingSchool.findUnique({
-      where: { email }
-    })
-  }
-
-  async countCategories(ids: number[]) {
-    return prisma.category.count({
-      where: { id: { in: ids } }
-    })
-  }
-
-  async findCities() {
-    return prisma.drivingSchool.findMany({
-      where: { city: { not: null } },
-      select: { city: true },
-      distinct: ['city'],
-      orderBy: { city: 'asc' }
-    })
-  }
-
-  async create(data: CreateDrivingSchoolData) {
-    const { categoryIds, ...school } = data
-
+  async create(data: {
+    name: string
+    email: string
+    location: string
+    address: string
+    description?: string
+    phone: string
+    createdAt: Date
+  }) {
     return prisma.drivingSchool.create({
       data: {
         ...school,
@@ -91,5 +76,21 @@ export class DrivingSchoolRepository {
     return prisma.drivingSchool.delete({
       where: { id }
     })
+  }
+
+  async findLocations() {
+    return prisma.drivingSchool.findMany({
+      select: {
+        location: true
+      },
+      distinct: ['location'],
+      orderBy: {
+        location: 'asc'
+      }
+    })
+  }
+  
+  async searchByLocationAndCategory(location: string, category: string) {
+    // TO DO
   }
 }

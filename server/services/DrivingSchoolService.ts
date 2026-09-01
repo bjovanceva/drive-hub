@@ -40,14 +40,16 @@ export class DrivingSchoolService {
     return school
   }
 
-  async createDrivingSchool(command: CreateDrivingSchoolCommand) {
-    const name = command.name?.trim()
-    const email = command.email?.trim().toLowerCase()
-    const address = command.address?.trim()
-    const phone = command.phone?.trim()
-    const city = command.city?.trim() || this.cityFromAddress(address)
-
-    if (!name) {
+  async createDrivingSchool(data: {
+    name: string
+    email: string
+    location: string
+    address: string
+    description?: string
+    phone: string
+    createdAt: Date
+  }) {
+    if (!data.name.trim()) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Name is required'
@@ -114,27 +116,9 @@ export class DrivingSchoolService {
     return this.repository.create(data)
   }
 
-  async deleteDrivingSchool(id: number) {
-    await this.getDrivingSchool(id)
+  async getLocations() {
+    const schools = await this.repository.findLocations()
 
-    try {
-      const deleted = await this.repository.delete(id)
-      return { id: deleted.id }
-    } catch (error: unknown) {
-      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2003') {
-        throw createError({
-          statusCode: 409,
-          statusMessage: 'Driving school cannot be deleted while related records exist'
-        })
-      }
-
-      throw error
-    }
-  }
-
-  /** Uses the final address segment as a compatibility fallback for old forms. */
-  private cityFromAddress(address?: string) {
-    if (!address) return undefined
-    return address.split(',').at(-1)?.trim() || undefined
+    return schools.map(school => school.location)
   }
 }
