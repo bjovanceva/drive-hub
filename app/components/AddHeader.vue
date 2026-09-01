@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import driveHubLogo from '~/assets/Drive-Hub-Logo.svg'
 import HeaderNavLink from '~/components/HeaderNavLink.vue'
+import { authRoutes, userRoutes } from '#shared/constants/routes'
 
 type HeaderLink = {
   label: string
@@ -17,12 +18,13 @@ const props = withDefaults(defineProps<{
     { label: 'Categories', to: '/categories' },
     { label: 'How it works', to: '/#how-it-works' }
   ],
-  signInTo: '#sign-in',
-  applicationTo: '/#apply'
+  signInTo: authRoutes.login,
+  applicationTo: userRoutes.startApplication
 })
 
 const route = useRoute()
 const isMenuOpen = ref(false)
+const { loggedIn, user, logout, mutationStatus } = useAuth()
 
 function closeMenu() {
   isMenuOpen.value = false
@@ -30,6 +32,12 @@ function closeMenu() {
 
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value
+}
+
+async function signOut() {
+  await logout()
+  closeMenu()
+  await navigateTo('/')
 }
 
 // Close the mobile drawer after every navigation, including query-only route
@@ -68,11 +76,29 @@ watch(() => route.fullPath, closeMenu)
       <span class="dh-header__spacer" aria-hidden="true" />
 
       <HeaderNavLink
+        v-if="!loggedIn"
         class="dh-header__sign-in"
         label="Sign in"
         :to="props.signInTo"
         @click="closeMenu"
       />
+
+      <template v-else>
+        <HeaderNavLink
+          class="dh-header__sign-in"
+          :label="user?.name || 'My account'"
+          :to="props.applicationTo"
+          @click="closeMenu"
+        />
+        <button
+          class="dh-header__sign-out"
+          type="button"
+          :disabled="mutationStatus === 'pending'"
+          @click="signOut"
+        >
+          Sign out
+        </button>
+      </template>
 
       <NuxtLink class="dh-header__application" :to="props.applicationTo" @click="closeMenu">
         Start application →
@@ -139,6 +165,21 @@ watch(() => route.fullPath, closeMenu)
   color: inherit;
   text-decoration: none;
 }
+
+.dh-header__sign-out {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dh-color-text-inverse);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.dh-header__sign-out:hover { color: var(--dh-color-text-hover); }
+.dh-header__sign-out:disabled { cursor: wait; opacity: 0.6; }
 
 .dh-header__brand {
   display: inline-flex;

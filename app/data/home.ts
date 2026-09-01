@@ -68,6 +68,6 @@ export const defaultHomePageData: HomePagePresentationDto = {
     title: 'Your first move starts here.',
     description: 'Choose a verified school, compare the programme, and put your application on the grid today.',
     actionLabel: 'Start your application →',
-    actionTo: '#apply'
+    actionTo: '/start-application'
   }
 }

@@ -44,6 +44,29 @@ The home and school-directory search forms share `useSchoolSearchOptions()`,
 which loads category codes and stored school cities from `/api/search-options`.
 Concrete dropdown choices therefore come from PostgreSQL rather than page data.
 
+## Authentication
+
+Authentication uses `nuxt-auth-utils` cookie sessions. Copy `.env.example` to
+`.env` and set `NUXT_SESSION_PASSWORD` to a random value with at least 32
+characters before running the application outside local development.
+
+The public authentication endpoints are:
+
+- `POST /api/auth/register` — creates an ordinary `USER` account and starts a
+  session. The request cannot choose a role.
+- `POST /api/auth/login` — signs in ordinary users. `ADMIN` accounts are
+  rejected because they are reserved for the future admin panel.
+- `POST /api/auth/logout` — clears the current session.
+
+`/start-application` is the first protected page. Its page middleware redirects
+guests to `/login`, while `/api/applications/context` independently validates
+the server session and current database role.
+
+`UserRole` represents global access (`USER` or `ADMIN`). School-specific access
+remains relational: a user may be connected to a school as a student,
+instructor, or manager. This keeps future school dashboards and permissions
+separate from the platform-wide admin role.
+
 ## Development Server
 
 Start the development server on `http://localhost:3000`:
