@@ -22,8 +22,35 @@ bun install
 
 ## Database seed
 
-After applying the Prisma migrations and configuring `DATABASE_URL`, seed or
-refresh the 17 licence categories with:
+After applying the Prisma migrations and configuring `DATABASE_URL`, create or
+refresh the complete development dataset with:
+
+```bash
+npm run db:seed
+```
+
+The seed is transactional and idempotent. It populates every current domain
+table: 17 licence categories, five development schools and their category
+connections, five role/context users, six vehicles, and sample applications in
+each status. It updates records identified by their stable email, code,
+registration, or application composite key instead of duplicating them.
+
+All development accounts use `SEED_DEFAULT_PASSWORD`, or `DriveHub123!` when
+the variable is omitted:
+
+| Context | Email |
+| --- | --- |
+| Applicant | `applicant@drivehub.test` |
+| Student | `student@drivehub.test` |
+| Instructor | `instructor@drivehub.test` |
+| School manager | `manager@drivehub.test` |
+| Global admin | `admin@drivehub.test` |
+
+The public login intentionally rejects the global admin account. The seed is
+blocked when `NODE_ENV=production` unless `ALLOW_PRODUCTION_SEED=true` is set
+explicitly.
+
+To refresh only the 17 licence categories, use:
 
 ```bash
 npm run db:seed:categories

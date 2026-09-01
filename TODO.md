@@ -20,14 +20,14 @@
 
 ## 2. Seed and development data
 
-- [ ] Add an idempotent development seed for driving schools and connect each
+- [x] Add an idempotent development seed for driving schools and connect each
   school to the categories it offers.
-- [ ] Seed clearly marked development accounts for an ordinary applicant,
+- [x] Seed clearly marked development accounts for an ordinary applicant,
   student, instructor, school manager, and global admin.
-- [ ] Hash all seeded passwords and document development-only credentials
+- [x] Hash all seeded passwords and document development-only credentials
   without reusing them in production.
-- [ ] Add representative pending, approved, rejected, and cancelled applications
-  after the application workflow is implemented.
+- [x] Add representative pending, approved, rejected, and cancelled applications
+  for development and future workflow testing.
 
 ## 3. Application domain and database model
 

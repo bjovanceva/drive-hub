@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
+    "db:seed": "prisma db seed",
     "db:seed:categories": "prisma db execute --file prisma/seed-categories.sql",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
@@ -11,6 +12,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@adonisjs/hash": "^9.1.1",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "nuxt": "^4.5.2",
