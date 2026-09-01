@@ -4,6 +4,12 @@ export const authRoutes = {
   register: '/register'
 } as const
 
+/** Directory and school-management routes. */
+export const schoolRoutes = {
+  list: '/schools',
+  create: '/schools/create'
+} as const
+
 /** Routes that require an authenticated USER session. */
 export const userRoutes = {
   startApplication: '/start-application'
