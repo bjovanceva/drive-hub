@@ -13,7 +13,7 @@ datasource db {
 }
 
 enum UserRole {
-  STUDENT
+  USER
   ADMIN
 }
 
@@ -29,13 +29,15 @@ model User {
   name               String
   email              String           @unique
   password           String
-  role               UserRole
+  role               UserRole         @default(USER)
   
   drivingSchoolId    Int?
   studentIn          DrivingSchool?   @relation("StudentSchool", fields: [drivingSchoolId], references: [id])
 
   instructorSchoolId Int?
   instructorIn       DrivingSchool?   @relation("InstructorSchool", fields: [instructorSchoolId], references: [id])
+
+  managedSchool      DrivingSchool?   @relation("SchoolManager")
 
   vehicle            Vehicle[]
 
@@ -50,10 +52,12 @@ model DrivingSchool {
   phone        String
   address      String
   city         String?
+  managerId    Int?           @unique
   createdAt    DateTime
 
   students     User[]         @relation("StudentSchool")
   instructors  User[]         @relation("InstructorSchool")
+  manager      User?          @relation("SchoolManager", fields: [managerId], references: [id], onDelete: SetNull)
   categories   Category[]
   applications Application[]
   vehicles     Vehicle[]

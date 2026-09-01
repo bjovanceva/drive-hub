@@ -14,9 +14,11 @@
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "nuxt": "^4.5.2",
+    "nuxt-auth-utils": "^0.5.30",
     "pg": "^8.23.0",
     "prisma": "^7.9.1",
     "vue": "^3.5.41",
-    "vue-router": "^5.2.0"
+    "vue-router": "^5.2.0",
+    "zod": "^4.5.4"
   }
 }

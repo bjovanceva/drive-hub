@@ -55,7 +55,7 @@ function formatPrice(value: number) {
 
       <div class="dh-directory-card__footer">
         <p>{{ school.vehicles }} · {{ school.languages.join(' / ') }}</p>
-        <NuxtLink to="/#apply">Start application →</NuxtLink>
+        <NuxtLink to="/start-application">Start application →</NuxtLink>
       </div>
     </div>
   </article>
