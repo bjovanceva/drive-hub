@@ -28,6 +28,30 @@ export interface DrivingSchoolDto {
   }
 }
 
+/** User summary used for manager selection dropdowns. */
+export interface UserSummaryDto {
+  id: number
+  name: string
+  email: string
+  role: string
+}
+
+/** Vehicle assignment data for a school’s fleet. */
+export interface VehicleAssignmentDto {
+  id: number
+  registration: string
+  brand: string
+  model: string
+  year: number
+  instructorId: number | null
+  instructorName: string | null
+  instructorEmail: string | null
+}
+
+export interface UpdateVehicleInstructorInput {
+  instructorId: number | null
+}
+
 /** Payload accepted when creating a driving school. */
 export interface CreateDrivingSchoolInput {
   name: string
@@ -36,6 +60,7 @@ export interface CreateDrivingSchoolInput {
   city?: string
   description?: string
   phone: string
+  managerId?: number
   createdAt?: string
   categoryIds?: number[]
 }

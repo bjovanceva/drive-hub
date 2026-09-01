@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { schoolRoutes } from '#shared/constants/routes'
-import type { CreateDrivingSchoolInput } from '~/types/driving-school'
+import type { CreateDrivingSchoolInput, UserSummaryDto } from '~/types/driving-school'
 
 const initialForm: CreateDrivingSchoolInput = {
   name: '',
@@ -8,12 +8,19 @@ const initialForm: CreateDrivingSchoolInput = {
   phone: '',
   city: '',
   address: '',
-  description: ''
+  description: '',
+  managerId: undefined
 }
 
 const form = reactive<CreateDrivingSchoolInput>({ ...initialForm })
 const formError = ref('')
 const successMessage = ref('')
+
+const { data: users, status: usersStatus, error: usersError } = await useFetch<UserSummaryDto[]>('/api/users')
+const managerOptions = computed(() => (users.value ?? []).map(user => ({
+  value: user.id,
+  label: `${user.name} (${user.email})`
+})))
 
 const { createDrivingSchool, mutationStatus } = useDrivingSchools()
 const isSubmitting = computed(() => mutationStatus.value === 'pending')
@@ -26,8 +33,8 @@ async function submitSchool() {
   formError.value = ''
   successMessage.value = ''
 
-  if (!form.name.trim() || !form.email.trim() || !form.phone.trim() || !form.address.trim()) {
-    formError.value = 'Please complete the school name, email, phone, and address fields.'
+  if (!form.name.trim() || !form.email.trim() || !form.phone.trim() || !form.address.trim() || !form.managerId) {
+    formError.value = 'Please complete the school fields and choose a school manager.'
     return
   }
 
@@ -38,7 +45,8 @@ async function submitSchool() {
       phone: form.phone,
       city: form.city?.trim() || undefined,
       address: form.address,
-      description: form.description?.trim() || undefined
+      description: form.description?.trim() || undefined,
+      managerId: Number(form.managerId)
     })
 
     successMessage.value = 'Driving school created successfully and added to the directory.'
@@ -88,6 +96,19 @@ async function submitSchool() {
           Address
           <input v-model.trim="form.address" type="text" maxlength="200" required>
         </label>
+
+        <label>
+          School manager
+          <select v-model.number="form.managerId" :disabled="usersStatus === 'pending' || managerOptions.length === 0" required>
+            <option :value="undefined" disabled>Select a manager</option>
+            <option v-for="user in managerOptions" :key="user.value" :value="user.value">
+              {{ user.label }}
+            </option>
+          </select>
+        </label>
+
+        <p v-if="usersError" class="dh-auth-form__error" role="alert">Unable to load users for manager selection.</p>
+        <p v-else-if="!managerOptions.length && usersStatus !== 'pending'" class="dh-auth-form__error" role="alert">No users are available to assign as school managers.</p>
 
         <label>
           Description
@@ -182,6 +203,7 @@ async function submitSchool() {
 }
 
 .dh-driving-school-form :deep(.dh-auth-form input),
+.dh-driving-school-form :deep(.dh-auth-form select),
 .dh-driving-school-form :deep(.dh-auth-form textarea) {
   width: 100%;
   min-height: 3.5rem;
@@ -196,6 +218,11 @@ async function submitSchool() {
 .dh-driving-school-form :deep(.dh-auth-form textarea) {
   min-height: 8rem;
   resize: vertical;
+}
+
+.dh-driving-school-form :deep(.dh-auth-form select) {
+  appearance: auto;
+  cursor: pointer;
 }
 
 .dh-driving-school-form__actions {

@@ -7,7 +7,10 @@ export const authRoutes = {
 /** Directory and school-management routes. */
 export const schoolRoutes = {
   list: '/schools',
-  create: '/schools/create'
+  detail: (schoolId: number | string) => `/schools/${schoolId}`,
+  create: '/schools/create',
+  createVehicle: (schoolId: number) => `/schools/${schoolId}/cars/create`,
+  addCategory: (schoolId: number) => `/schools/${schoolId}/categories/add`
 } as const
 
 /** Routes that require an authenticated USER session. */

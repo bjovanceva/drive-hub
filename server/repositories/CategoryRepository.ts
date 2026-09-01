@@ -12,4 +12,15 @@ export class CategoryRepository {
       orderBy: { id: 'asc' }
     })
   }
+
+  async findAllForSelection() {
+    return prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+        code: true
+      },
+      orderBy: { name: 'asc' }
+    })
+  }
 }

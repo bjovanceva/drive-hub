@@ -11,6 +11,7 @@ export interface CreateDrivingSchoolCommand {
   description?: string
   phone: string
   city?: string
+  managerId?: number
   createdAt?: string | Date
   categoryIds?: number[]
 }
@@ -83,6 +84,29 @@ export class DrivingSchoolService {
       })
     }
 
+    const managerId = command.managerId
+    if (!Number.isInteger(managerId) || managerId! <= 0) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'A school manager must be selected'
+      })
+    }
+
+    const selectedUser = await this.repository.getUserById(managerId)
+    if (!selectedUser) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Selected manager user was not found'
+      })
+    }
+
+    if (selectedUser.managedSchool) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'This user already manages another driving school'
+      })
+    }
+
     const requestedCategoryIds = command.categoryIds ?? []
     if (requestedCategoryIds.some(id => !Number.isInteger(id) || id <= 0)) {
       throw createError({
@@ -106,6 +130,7 @@ export class DrivingSchoolService {
       address,
       phone,
       city,
+      managerId,
       createdAt,
       description: command.description?.trim() || undefined,
       categoryIds

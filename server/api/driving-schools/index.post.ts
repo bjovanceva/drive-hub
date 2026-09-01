@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
     city: body.city,
     description: body.description,
     phone: body.phone,
+    managerId: body.managerId,
     createdAt: body.createdAt,
     categoryIds: Array.isArray(body.categoryIds) ? body.categoryIds : undefined
   })

@@ -12,6 +12,7 @@ export interface CreateDrivingSchoolData {
   description?: string
   phone: string
   city?: string
+  managerId?: number
   createdAt: Date
   categoryIds?: number[]
 }
@@ -74,16 +75,34 @@ export class DrivingSchoolRepository {
   }
 
   async create(data: CreateDrivingSchoolData) {
-    const { categoryIds, ...school } = data
+    const { categoryIds, managerId, ...school } = data
 
     return prisma.drivingSchool.create({
       data: {
         ...school,
+        manager: managerId
+          ? { connect: { id: managerId } }
+          : undefined,
         categories: categoryIds?.length
           ? { connect: categoryIds.map(id => ({ id })) }
           : undefined
       },
       include: schoolRelations
+    })
+  }
+
+  async getUserById(id: number) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        managedSchool: {
+          select: { id: true }
+        }
+      }
     })
   }
 

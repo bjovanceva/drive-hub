@@ -29,6 +29,36 @@ export class UserRepository {
     })
   }
 
+  async findAllForSelection() {
+    return prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        managedSchool: {
+          select: { id: true }
+        }
+      },
+      orderBy: { name: 'asc' }
+    })
+  }
+
+  async findById(id: number) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        managedSchool: {
+          select: { id: true }
+        }
+      }
+    })
+  }
+
   async createOrdinaryUser(data: { name: string, email: string, password: string }) {
     return prisma.user.create({
       data: {
