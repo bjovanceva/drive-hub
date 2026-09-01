@@ -3,7 +3,6 @@ import ctaRace from '~/assets/cta-race.svg'
 import heroTrack from '~/assets/hero-track.svg'
 import timingRail from '~/assets/timing-rail.svg'
 import { defaultHomePageData } from '~/data/home'
-import { useDrivingSchools } from '~/composables/useDrivingSchools'
 import type { SchoolSearchPresentationDto, SelectOptionPresentationDto } from '~/types/presentation/home'
 import { toSchoolDirectoryItem } from '~/utils/drivingSchoolPresentation'
 
@@ -19,10 +18,50 @@ useSeoMeta({
 const route = useRoute()
 const pageData = defaultHomePageData
 
+// Both dropdowns are populated by /api/search-options. "All" is the only
+// UI-only choice; every concrete city and category originates in the database.
+const {
+  locationOptions: backendLocations,
+  categoryOptions: backendCategories
+} = useSchoolSearchOptions()
+const locationOptions = computed<SelectOptionPresentationDto[]>(() => [
+  { value: 'all', label: 'All cities' },
+  ...backendLocations.value
+])
+const categoryOptions = computed<SelectOptionPresentationDto[]>(() => [
+  { value: 'all', label: 'All categories' },
+  ...backendCategories.value
+])
 
-const { getDrivingSchools } = useDrivingSchools();
-const schools = await getDrivingSchools()
+// The homepage category shortcuts reuse the same API response as the search
+// form, so their labels and URLs cannot drift from the persisted catalogue.
+const homepageCategories = computed(() => ['a', 'b', 'c'].flatMap((code) => {
+  const option = backendCategories.value.find(category => category.value === code)
+  if (!option) return []
 
+  return [{
+    id: `licence-${code}`,
+    code: code.toUpperCase(),
+    label: option.label.split(' — ').slice(1).join(' — ') || option.label,
+    meta: 'Browse matching schools',
+    to: `/schools?category=${code}`
+  }]
+}))
+
+// The homepage consumes the same live school endpoint as the directory. The
+// adapter supplies the card-only fields that are not persisted in Prisma yet.
+const {
+  schools: drivingSchools,
+  error: schoolsError,
+  status: schoolsStatus
+} = useDrivingSchools()
+const featuredSchools = computed(() => (drivingSchools.value ?? [])
+  .map(toSchoolDirectoryItem)
+  .slice(0, 3))
+
+function formatPrice(price: number) {
+  return price > 0 ? `From ${new Intl.NumberFormat('en-GB').format(price)} MKD` : 'Contact for price'
+}
 
 function validQueryValue(
   value: unknown,
@@ -34,16 +73,15 @@ function validQueryValue(
     : fallback
 }
 
-const { getLocations } = useDrivingSchools()
-const locations = await getLocations()
-
+// Route query values are validated before they are mirrored into the search
+// panel, preventing unsupported URLs from becoming selected form options.
 const searchData = computed<SchoolSearchPresentationDto>(() => ({
-  ...pageData.hero.search,
-  locations: locations,
+  locations: locationOptions.value,
+  categories: categoryOptions.value,
   defaultLocation: validQueryValue(
     route.query.location,
-    locations,
-    pageData.hero.search.defaultLocation
+    locationOptions.value,
+    'all'
   ),
   defaultCategory: validQueryValue(
     route.query.category,

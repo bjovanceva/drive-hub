@@ -9,7 +9,6 @@ export default defineEventHandler(async (event) => {
   const school = await service.createDrivingSchool({
     name: body.name,
     email: body.email,
-    location: body.location,
     address: body.address,
     city: body.city,
     description: body.description,
