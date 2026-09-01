@@ -4,6 +4,7 @@ import heroTrack from '~/assets/hero-track.svg'
 import timingRail from '~/assets/timing-rail.svg'
 import { defaultHomePageData } from '~/data/home'
 import type { SchoolSearchPresentationDto, SelectOptionPresentationDto } from '~/types/presentation/home'
+import { toSchoolDirectoryItem } from '~/utils/drivingSchoolPresentation'
 
 definePageMeta({
   layout: 'default'
@@ -17,7 +18,50 @@ useSeoMeta({
 const route = useRoute()
 const pageData = defaultHomePageData
 
-const { data: schools, error, status } = await useFetch('/api/driving-schools')
+// Both dropdowns are populated by /api/search-options. "All" is the only
+// UI-only choice; every concrete city and category originates in the database.
+const {
+  locationOptions: backendLocations,
+  categoryOptions: backendCategories
+} = useSchoolSearchOptions()
+const locationOptions = computed<SelectOptionPresentationDto[]>(() => [
+  { value: 'all', label: 'All cities' },
+  ...backendLocations.value
+])
+const categoryOptions = computed<SelectOptionPresentationDto[]>(() => [
+  { value: 'all', label: 'All categories' },
+  ...backendCategories.value
+])
+
+// The homepage category shortcuts reuse the same API response as the search
+// form, so their labels and URLs cannot drift from the persisted catalogue.
+const homepageCategories = computed(() => ['a', 'b', 'c'].flatMap((code) => {
+  const option = backendCategories.value.find(category => category.value === code)
+  if (!option) return []
+
+  return [{
+    id: `licence-${code}`,
+    code: code.toUpperCase(),
+    label: option.label.split(' — ').slice(1).join(' — ') || option.label,
+    meta: 'Browse matching schools',
+    to: `/schools?category=${code}`
+  }]
+}))
+
+// The homepage consumes the same live school endpoint as the directory. The
+// adapter supplies the card-only fields that are not persisted in Prisma yet.
+const {
+  schools: drivingSchools,
+  error: schoolsError,
+  status: schoolsStatus
+} = useDrivingSchools()
+const featuredSchools = computed(() => (drivingSchools.value ?? [])
+  .map(toSchoolDirectoryItem)
+  .slice(0, 3))
+
+function formatPrice(price: number) {
+  return price > 0 ? `From ${new Intl.NumberFormat('en-GB').format(price)} MKD` : 'Contact for price'
+}
 
 function validQueryValue(
   value: unknown,
@@ -29,27 +73,30 @@ function validQueryValue(
     : fallback
 }
 
+// Route query values are validated before they are mirrored into the search
+// panel, preventing unsupported URLs from becoming selected form options.
 const searchData = computed<SchoolSearchPresentationDto>(() => ({
-  ...pageData.hero.search,
+  locations: locationOptions.value,
+  categories: categoryOptions.value,
   defaultLocation: validQueryValue(
     route.query.location,
-    pageData.hero.search.locations,
-    pageData.hero.search.defaultLocation
+    locationOptions.value,
+    'all'
   ),
   defaultCategory: validQueryValue(
     route.query.category,
-    pageData.hero.search.categories,
-    pageData.hero.search.defaultCategory
-  )
+    categoryOptions.value,
+    'all'
+  ),
+  submitLabel: 'Search schools →'
 }))
 
 function handleSchoolSearch(filters: { location: string, category: string }) {
   void navigateTo({
     path: '/schools',
     query: {
-      ...route.query,
-      location: filters.location,
-      category: filters.category
+      location: filters.location === 'all' ? undefined : filters.location,
+      category: filters.category === 'all' ? undefined : filters.category
     }
   })
 }
@@ -79,13 +126,7 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
             </p>
           </div>
 
-          <img
-            class="dh-home__hero-track"
-            :src="heroTrack"
-            alt=""
-            width="448"
-            height="382"
-          >
+          <img class="dh-home__hero-track" :src="heroTrack" alt="" width="448" height="382">
         </div>
 
         <SearchPanel :data="searchData" @search="handleSchoolSearch" />
@@ -94,82 +135,63 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
 
     <section class="dh-home__section dh-home__section--page" aria-labelledby="network-heading">
       <div class="dh-home__container">
-        <SectionHeading
-          id="network-heading"
-          :eyebrow="pageData.network.eyebrow"
-          :title="pageData.network.title"
-          :description="pageData.network.description"
-        />
+        <SectionHeading id="network-heading" :eyebrow="pageData.network.eyebrow" :title="pageData.network.title"
+          :description="pageData.network.description" />
 
         <div class="dh-home__stats">
-          <StatTile
-            v-for="stat in pageData.network.stats"
-            :key="stat.id"
-            :value="stat.value"
-            :label="stat.label"
-            :meta="stat.meta"
-          />
+          <StatTile v-for="stat in pageData.network.stats" :key="stat.id" :value="stat.value" :label="stat.label"
+            :meta="stat.meta" />
         </div>
       </div>
     </section>
 
     <section id="schools" class="dh-home__section dh-home__section--surface" aria-labelledby="schools-heading">
       <div class="dh-home__container">
-        <SectionHeading
-          id="schools-heading"
-          :eyebrow="pageData.featuredSchools.eyebrow"
-          :title="pageData.featuredSchools.title"
-          :action-label="pageData.featuredSchools.actionLabel"
-          :action-to="pageData.featuredSchools.actionTo"
-        />
+        <SectionHeading id="schools-heading" :eyebrow="pageData.featuredSchools.eyebrow"
+          :title="pageData.featuredSchools.title" :action-label="pageData.featuredSchools.actionLabel"
+          :action-to="pageData.featuredSchools.actionTo" />
 
         <div class="dh-home__schools">
-          <div
-            v-for="(school, schoolIndex) in schools"
-            :id="String(school.id)"
-            :key="school.id"
-          >
-            <SchoolCard
-              :school-name="school.name"
-              :location="school.address"
-              licence-type="B"
-              price="25000"
-              :verified="true"
-              to="happy"
-              :reveal-delay="schoolIndex * 120"
-            />
+          <div v-if="schoolsStatus === 'success' && featuredSchools.length">
+            <div v-for="(school, schoolIndex) in featuredSchools" :id="String(school.id)" :key="school.id">
+              <SchoolCard
+                :school-name="school.name"
+                :location="school.municipality"
+                :licence-type="school.categories.length ? school.categories.map(item => item.toUpperCase()).join(' · ') : 'Categories on request'"
+                :price="formatPrice(school.priceFrom)"
+                :verified="school.verified"
+                :to="`/schools#${school.id}`"
+                :reveal-delay="schoolIndex * 120"
+              />
+            </div>
           </div>
+          <div v-else-if="schoolsStatus === 'pending'">
+            Loading schools…
+          </div>
+          <div v-else-if="schoolsError">
+            Schools cannot be displayed right now.
+          </div>
+          <div v-else>
+            No driving schools have been added yet.
+          </div>
+
         </div>
       </div>
     </section>
 
     <section id="licences" class="dh-home__section dh-home__section--inverse" aria-labelledby="licences-heading">
       <div class="dh-home__container">
-        <SectionHeading
-          id="licences-heading"
-          theme="dark"
-          :eyebrow="pageData.licenceCategories.eyebrow"
-          :title="pageData.licenceCategories.title"
-          :description="pageData.licenceCategories.description"
-          :action-label="pageData.licenceCategories.actionLabel"
-          :action-to="pageData.licenceCategories.actionTo"
-        />
+        <SectionHeading id="licences-heading" theme="dark" :eyebrow="pageData.licenceCategories.eyebrow"
+          :title="pageData.licenceCategories.title" :description="pageData.licenceCategories.description"
+          :action-label="pageData.licenceCategories.actionLabel" :action-to="pageData.licenceCategories.actionTo" />
 
         <img class="dh-home__timing-rail" :src="timingRail" alt="" width="1248" height="20">
 
         <div class="dh-home__categories">
-          <div
-            v-for="(category, categoryIndex) in pageData.licenceCategories.categories"
-            :id="category.id"
-            :key="category.id"
-          >
-            <CategoryTile
-              :code="category.code"
-              :label="category.label"
-              :meta="category.meta"
-              :to="category.to"
-              :reveal-delay="categoryIndex * 110"
-            />
+          <div v-for="(category, categoryIndex) in homepageCategories" :id="category.id"
+            :key="category.id">
+            <CategoryTile :code="category.code" :label="category.label" :meta="category.meta" :to="category.to"
+              :reveal-delay="categoryIndex * 110" />
           </div>
         </div>
       </div>
@@ -177,12 +199,8 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
 
     <section id="how-it-works" class="dh-home__section dh-home__section--page" aria-labelledby="journey-heading">
       <div class="dh-home__container">
-        <SectionHeading
-          id="journey-heading"
-          :eyebrow="pageData.journey.eyebrow"
-          :title="pageData.journey.title"
-          :description="pageData.journey.description"
-        />
+        <SectionHeading id="journey-heading" :eyebrow="pageData.journey.eyebrow" :title="pageData.journey.title"
+          :description="pageData.journey.description" />
 
         <JourneyBoard :steps="pageData.journey.steps" />
       </div>
@@ -196,11 +214,7 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
           </p>
           <h2 id="cta-heading">{{ pageData.finalCta.title }}</h2>
           <p>{{ pageData.finalCta.description }}</p>
-          <AppButton
-            variant="secondary"
-            :text="pageData.finalCta.actionLabel"
-            :to="pageData.finalCta.actionTo"
-          />
+          <AppButton variant="secondary" :text="pageData.finalCta.actionLabel" :to="pageData.finalCta.actionTo" />
         </div>
 
         <img class="dh-home__cta-track" :src="ctaRace" alt="" width="452" height="244">
@@ -366,8 +380,8 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
   gap: 2rem;
 }
 
-.dh-home__schools > div,
-.dh-home__categories > div {
+.dh-home__schools>div,
+.dh-home__categories>div {
   min-width: 0;
 }
 
@@ -409,7 +423,7 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
   text-transform: uppercase;
 }
 
-.dh-home__cta-copy > p:not(.dh-home__eyebrow) {
+.dh-home__cta-copy>p:not(.dh-home__eyebrow) {
   width: 40.625rem;
   max-width: 100%;
   font-family: 'Inter', sans-serif;
@@ -425,6 +439,7 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
 }
 
 @media (max-width: 75rem) {
+
   .dh-home__hero,
   .dh-home__section,
   .dh-home__cta {
@@ -449,6 +464,7 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
 }
 
 @media (max-width: 62rem) {
+
   .dh-home__hero-main,
   .dh-home__cta-inner {
     grid-template-columns: 1fr;
@@ -474,6 +490,7 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
 }
 
 @media (max-width: 48rem) {
+
   .dh-home__hero,
   .dh-home__section,
   .dh-home__cta {
@@ -504,6 +521,7 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
 }
 
 @media (max-width: 24rem) {
+
   .dh-home__stats,
   .dh-home__schools,
   .dh-home__categories {

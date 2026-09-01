@@ -18,24 +18,6 @@ export interface StatTilePresentationDto {
   meta: string
 }
 
-export interface SchoolCardPresentationDto {
-  id: string
-  schoolName: string
-  location: string
-  licenceType: string
-  price: string
-  verified: boolean
-  to: string
-}
-
-export interface CategoryTilePresentationDto {
-  id: string
-  code: string
-  label: string
-  meta: string
-  to: string
-}
-
 export interface JourneyStepPresentationDto {
   id: string
   number: string
@@ -59,17 +41,12 @@ export interface HomePagePresentationDto {
     titleLines: string[]
     description: string
     proof: string
-    search: SchoolSearchPresentationDto
   }
   network: SectionHeadingPresentationDto & {
     stats: StatTilePresentationDto[]
   }
-  featuredSchools: SectionHeadingPresentationDto & {
-    schools: SchoolCardPresentationDto[]
-  }
-  licenceCategories: SectionHeadingPresentationDto & {
-    categories: CategoryTilePresentationDto[]
-  }
+  featuredSchools: SectionHeadingPresentationDto
+  licenceCategories: SectionHeadingPresentationDto
   journey: SectionHeadingPresentationDto & {
     steps: JourneyStepPresentationDto[]
   }

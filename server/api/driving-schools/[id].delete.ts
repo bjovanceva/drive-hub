@@ -1,6 +1,6 @@
 import { DrivingSchoolService } from '../../services/DrivingSchoolService'
 
-/** GET /api/driving-schools/:id returns one school with its categories. */
+/** DELETE /api/driving-schools/:id removes a school when no restricted relations remain. */
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
 
@@ -12,6 +12,5 @@ export default defineEventHandler(async (event) => {
   }
 
   const service = new DrivingSchoolService()
-
-  return service.getDrivingSchool(id)
+  return service.deleteDrivingSchool(id)
 })

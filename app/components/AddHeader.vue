@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   navigation: () => [
     { label: 'Schools', to: '/schools' },
-    { label: 'Licences', to: '/categories' },
+    { label: 'Categories', to: '/categories' },
     { label: 'How it works', to: '/#how-it-works' }
   ],
   signInTo: '#sign-in',
@@ -32,6 +32,8 @@ function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value
 }
 
+// Close the mobile drawer after every navigation, including query-only route
+// changes made by directory filters.
 watch(() => route.fullPath, closeMenu)
 </script>
 

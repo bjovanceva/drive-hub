@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
+    "db:seed:categories": "prisma db execute --file prisma/seed-categories.sql",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

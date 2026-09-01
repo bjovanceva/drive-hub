@@ -17,6 +17,8 @@ const props = withDefaults(defineProps<{
   revealDelay: 0
 })
 
+// The shared reveal composable keeps viewport animation behavior consistent
+// with category tiles and cleans up its observer on unmount.
 const {
   target: cardRef,
   isMotionReady,

@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { defaultHomePageData } from '~/data/home'
 import type { SchoolSearchPresentationDto, SelectOptionPresentationDto } from '~/types/presentation/home'
-import type { SchoolDirectoryResponseDto } from '~/types/presentation/schools'
+import { toSchoolDirectoryItem } from '~/utils/drivingSchoolPresentation'
 
 definePageMeta({ layout: 'default' })
 
@@ -13,51 +12,69 @@ useSeoMeta({
 type SortOption = 'recommended' | 'rating' | 'price'
 
 const route = useRoute()
-const baseSearch = defaultHomePageData.hero.search
-const locationOptions: SelectOptionPresentationDto[] = [
+
+// Concrete options come from persisted cities and categories. "All" remains a
+// local control value because it represents removing a backend filter.
+const {
+  locationOptions: backendLocations,
+  categoryOptions: backendCategories
+} = useSchoolSearchOptions()
+const locationOptions = computed<SelectOptionPresentationDto[]>(() => [
   { value: 'all', label: 'All cities' },
-  ...baseSearch.locations
-]
-const categoryOptions: SelectOptionPresentationDto[] = [
+  ...backendLocations.value
+])
+const categoryOptions = computed<SelectOptionPresentationDto[]>(() => [
   { value: 'all', label: 'All categories' },
-  ...baseSearch.categories
-]
+  ...backendCategories.value
+])
 const sortBy = ref<SortOption>('recommended')
 
 function validQueryValue(value: unknown, options: SelectOptionPresentationDto[]) {
   return typeof value === 'string' && options.some(option => option.value === value) ? value : 'all'
 }
 
-const location = computed(() => validQueryValue(route.query.location, locationOptions))
-const category = computed(() => validQueryValue(route.query.category, categoryOptions))
+const location = computed(() => validQueryValue(route.query.location, locationOptions.value))
+const category = computed(() => validQueryValue(route.query.category, categoryOptions.value))
+
+// SearchPanel is controlled by the URL, so browser navigation and direct links
+// always reproduce the same selected filters.
 const searchData = computed<SchoolSearchPresentationDto>(() => ({
-  locations: locationOptions,
-  categories: categoryOptions,
+  locations: locationOptions.value,
+  categories: categoryOptions.value,
   defaultLocation: location.value,
   defaultCategory: category.value,
   submitLabel: 'Search Schools →'
 }))
-const requestQuery = computed(() => ({
-  location: location.value === 'all' ? undefined : location.value,
-  category: category.value === 'all' ? undefined : category.value
-}))
-
-const { data, status, error, refresh } = await useFetch<SchoolDirectoryResponseDto>('/api/schools', {
-  query: requestQuery
+// Reactive filters are forwarded to GET /api/driving-schools. Mutations are
+// also available from this composable for future administrative controls.
+const {
+  schools: drivingSchools,
+  status,
+  error,
+  refresh
+} = useDrivingSchools({
+  location,
+  category
 })
 
+// Prisma does not yet store all directory-card fields. The adapter centralizes
+// neutral fallbacks; this page owns only the user's selected sort order.
 const schools = computed(() => {
-  const items = [...(data.value?.items ?? [])]
+  const items = (drivingSchools.value ?? []).map(toSchoolDirectoryItem)
   if (sortBy.value === 'rating') return items.sort((a, b) => b.rating - a.rating)
-  if (sortBy.value === 'price') return items.sort((a, b) => a.priceFrom - b.priceFrom)
+  if (sortBy.value === 'price') return items.sort((a, b) => {
+    if (!a.priceFrom) return 1
+    if (!b.priceFrom) return -1
+    return a.priceFrom - b.priceFrom
+  })
   return items.sort((a, b) => {
     if (a.availability !== b.availability) return a.availability === 'open' ? -1 : 1
     return b.rating - a.rating
   })
 })
 
-const locationLabel = computed(() => locationOptions.find(option => option.value === location.value)?.label)
-const categoryLabel = computed(() => categoryOptions.find(option => option.value === category.value)?.label)
+const locationLabel = computed(() => locationOptions.value.find(option => option.value === location.value)?.label)
+const categoryLabel = computed(() => categoryOptions.value.find(option => option.value === category.value)?.label)
 
 function handleSearch(filters: { location: string, category: string }) {
   void navigateTo({
@@ -93,7 +110,7 @@ function retryFetch() {
 
           <aside class="dh-schools-page__brief" aria-label="Directory summary">
             <p>School Grid status</p>
-            <strong>{{ data?.total ?? 0 }}</strong>
+            <strong>{{ schools.length }}</strong>
             <span>matching schools</span>
           </aside>
         </div>
@@ -108,7 +125,7 @@ function retryFetch() {
           <div>
             <p class="dh-schools-page__eyebrow dh-schools-page__eyebrow--dark">Search results</p>
             <h2 id="results-title">{{ locationLabel }} · {{ categoryLabel }}</h2>
-            <p>{{ data?.total ?? 0 }} verified matches on the starting grid.</p>
+            <p>{{ schools.length }} verified matches on the starting grid.</p>
           </div>
 
           <label class="dh-schools-page__sort">
@@ -138,6 +155,7 @@ function retryFetch() {
           <SchoolDirectoryCard
             v-for="(school, index) in schools"
             :key="school.id"
+            :id="school.id"
             :school="school"
             :position="index + 1"
           />
@@ -152,12 +170,7 @@ function retryFetch() {
       </div>
     </section>
 
-    <section class="dh-schools-page__note">
-      <div class="dh-schools-page__container dh-schools-page__note-inner">
-        <p><i aria-hidden="true" /> Verified listings</p>
-        <p>Prices shown are seeded demo data until live school integrations launch.</p>
-      </div>
-    </section>
+
   </div>
 </template>
 

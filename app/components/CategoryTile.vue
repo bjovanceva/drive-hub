@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<{
   revealDelay: 0
 })
 
+// useScrollReveal runs the entrance animation once and respects the user's
+// reduced-motion preference.
 const {
   target: tileRef,
   isMotionReady,

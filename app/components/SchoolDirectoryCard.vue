@@ -3,15 +3,17 @@ import type { SchoolDirectoryItemDto } from '~/types/presentation/schools'
 
 defineProps<{ school: SchoolDirectoryItemDto, position: number }>()
 
-const cityLabels: Record<string, string> = {
-  skopje: 'Skopje',
-  tetovo: 'Tetovo',
-  bitola: 'Bitola',
-  kumanovo: 'Kumanovo'
+/** Makes legacy slug-like city values readable while preserving DB labels. */
+function formatCity(city: string) {
+  return city
+    .split('-')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
+/** A zero price means the school has not published a programme price yet. */
 function formatPrice(value: number) {
-  return new Intl.NumberFormat('en-US').format(value)
+  return value > 0 ? `${new Intl.NumberFormat('en-US').format(value)} MKD` : 'Contact school'
 }
 </script>
 
@@ -19,7 +21,7 @@ function formatPrice(value: number) {
   <article class="dh-directory-card">
     <div class="dh-directory-card__gridline" aria-hidden="true">
       <span>{{ String(position).padStart(2, '0') }}</span>
-      <span>{{ cityLabels[school.city] }}</span>
+      <span>{{ formatCity(school.city) }}</span>
     </div>
 
     <div class="dh-directory-card__body">
@@ -33,12 +35,13 @@ function formatPrice(value: number) {
       <div class="dh-directory-card__title-row">
         <div>
           <h2>{{ school.name }}</h2>
-          <p>{{ cityLabels[school.city] }} · {{ school.municipality }}</p>
+          <p>{{ formatCity(school.city) }} · {{ school.municipality }}</p>
         </div>
-        <p class="dh-directory-card__rating" :aria-label="`${school.rating} out of 5, ${school.reviewCount} reviews`">
+        <p v-if="school.reviewCount" class="dh-directory-card__rating" :aria-label="`${school.rating} out of 5, ${school.reviewCount} reviews`">
           <span aria-hidden="true">★</span> {{ school.rating }}
           <small>{{ school.reviewCount }} reviews</small>
         </p>
+        <p v-else class="dh-directory-card__rating">New listing</p>
       </div>
 
       <div class="dh-directory-card__categories" aria-label="Available licence categories">
@@ -46,7 +49,7 @@ function formatPrice(value: number) {
       </div>
 
       <dl class="dh-directory-card__details">
-        <div><dt>Programme from</dt><dd>{{ formatPrice(school.priceFrom) }} MKD</dd></div>
+        <div><dt>Programme from</dt><dd>{{ formatPrice(school.priceFrom) }}</dd></div>
         <div><dt>Next group</dt><dd>{{ school.nextStart }}</dd></div>
       </dl>
 
