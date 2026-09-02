@@ -59,6 +59,14 @@ export class UserRepository {
     })
   }
 
+  async findInstructorsBySchoolId(schoolId: number) {
+    return prisma.user.findMany({
+      where: { instructorSchoolId: schoolId },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' }
+    })
+  }
+
   async createOrdinaryUser(data: { name: string, email: string, password: string }) {
     return prisma.user.create({
       data: {

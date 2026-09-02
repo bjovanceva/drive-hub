@@ -42,6 +42,7 @@ model User {
   vehicle            Vehicle[]
 
   applications       Application[]
+  preferredApplications Application[] @relation("PreferredInstructorApplications")
 }
 
 model DrivingSchool {
@@ -103,6 +104,9 @@ model Application {
 
   categoryId      Int
   category        Category           @relation(fields: [categoryId], references: [id])
+
+  preferredInstructorId Int?
+  preferredInstructor   User?          @relation("PreferredInstructorApplications", fields: [preferredInstructorId], references: [id], onDelete: SetNull)
 
   @@unique([userId, drivingSchoolId, categoryId])
 }

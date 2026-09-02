@@ -42,12 +42,7 @@ async function submitVehicle() {
       }
     })
 
-    successMessage.value = 'Vehicle created successfully.'
-    vehicleForm.registration = ''
-    vehicleForm.brand = ''
-    vehicleForm.model = ''
-    vehicleForm.year = new Date().getFullYear()
-    vehicleForm.instructorId = null
+    await navigateTo(schoolRoutes.detail(schoolId.value))
   } catch (error: unknown) {
     const reason = (error as any)?.data?.statusMessage
       ?? (error as any)?.data?.message

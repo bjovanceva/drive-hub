@@ -5,6 +5,7 @@ definePageMeta({ layout: 'default' })
 
 const route = useRoute()
 const schoolId = computed(() => Number(route.params.id))
+const isSchoolDetailRoute = computed(() => route.path === schoolRoutes.detail(schoolId.value))
 
 const { data: school, status: schoolStatus, error: schoolError } = await useFetch<any>(`/api/driving-schools/${schoolId.value}`)
 const { data: vehicles } = await useFetch<any[]>(`/api/driving-schools/${schoolId.value}/vehicles`)
@@ -23,7 +24,7 @@ function formatAddress(raw: string | null | undefined) {
 </script>
 
 <template>
-  <div class="dh-school-detail-page">
+  <div v-if="isSchoolDetailRoute" class="dh-school-detail-page">
     <section class="dh-school-detail-page__hero">
       <div class="dh-school-detail-page__container">
         <p>School / Profile</p>
@@ -31,7 +32,7 @@ function formatAddress(raw: string | null | undefined) {
 
         <div class="dh-school-detail-page__actions">
           <NuxtLink class="dh-school-detail-page__secondary" :to="schoolRoutes.list">← Back to schools</NuxtLink>
-          <NuxtLink class="dh-school-detail-page__primary" to="/start-application">Start application</NuxtLink>
+          <NuxtLink class="dh-school-detail-page__primary" :to="`/start-application?schoolId=${schoolId}`">Start application</NuxtLink>
         </div>
       </div>
     </section>
@@ -98,7 +99,10 @@ function formatAddress(raw: string | null | undefined) {
                   <span>{{ vehicle.registration }}</span>
                   <small>{{ vehicle.brand }} {{ vehicle.model }} · {{ vehicle.year }}</small>
                 </div>
-                <strong>{{ vehicle.instructorName || 'Instructor unassigned' }}</strong>
+                <strong>
+                  <span>{{ vehicle.instructorName || 'Instructor unassigned' }}</span>
+                  <small v-if="vehicle.instructorEmail">{{ vehicle.instructorEmail }}</small>
+                </strong>
               </li>
               <li v-if="!vehicleList.length" class="dh-school-detail-page__empty">No vehicles assigned yet.</li>
             </ul>
@@ -107,6 +111,7 @@ function formatAddress(raw: string | null | undefined) {
       </div>
     </section>
   </div>
+  <NuxtPage v-else />
 </template>
 
 <style scoped>
@@ -279,6 +284,11 @@ function formatAddress(raw: string | null | undefined) {
 }
 
 .dh-school-detail-page__list li strong {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+  text-align: right;
   font-size: 0.8rem;
 }
 
