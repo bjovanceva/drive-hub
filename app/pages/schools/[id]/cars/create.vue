@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { schoolRoutes } from '#shared/constants/routes'
 
-definePageMeta({ layout: 'default' })
+definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const route = useRoute()
 const schoolId = computed(() => Number(route.params.id))
@@ -16,8 +16,7 @@ const formError = ref('')
 const successMessage = ref('')
 const isSubmitting = ref(false)
 
-const { data: userOptions, status: userStatus } = await useFetch('/api/users')
-const instructorOptions = computed(() => (userOptions.value ?? []) as Array<{ id: number, name: string, email: string }>)
+const { data: instructorOptions, status: instructorsStatus } = await useFetch<Array<{ id: number, name: string, email: string }>>(`/api/driving-schools/${schoolId.value}/instructors`)
 
 async function submitVehicle() {
   formError.value = ''
@@ -100,7 +99,7 @@ async function submitVehicle() {
 
             <label>
               Instructor (optional)
-              <select v-model.number="vehicleForm.instructorId" :disabled="userStatus === 'pending' || !instructorOptions.length">
+              <select v-model.number="vehicleForm.instructorId" :disabled="instructorsStatus === 'pending' || !instructorOptions?.length">
                 <option :value="null">No instructor assigned yet</option>
                 <option v-for="user in instructorOptions" :key="user.id" :value="user.id">
                   {{ user.name }} ({{ user.email }})

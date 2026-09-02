@@ -1,4 +1,5 @@
 import { VehicleService } from '../../../services/VehicleService'
+import { restrictManagerToSchool } from '../../../utils/authorization'
 
 /** GET /api/driving-schools/:id/vehicles returns the fleet for a school. */
 export default defineEventHandler(async (event) => {
@@ -10,6 +11,8 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Invalid driving school ID'
     })
   }
+
+  await restrictManagerToSchool(event, schoolId)
 
   const service = new VehicleService()
   const vehicles = await service.getSchoolVehicles(schoolId)

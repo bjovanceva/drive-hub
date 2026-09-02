@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { schoolRoutes } from '#shared/constants/routes'
 
-definePageMeta({ layout: 'default' })
+definePageMeta({ layout: 'default', middleware: 'auth' })
 
 const route = useRoute()
 const schoolId = computed(() => Number(route.params.id))

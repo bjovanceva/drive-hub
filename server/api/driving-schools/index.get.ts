@@ -1,4 +1,5 @@
 import { DrivingSchoolService } from '../../services/DrivingSchoolService'
+import { getAuthenticatedOrdinaryUser } from '../../utils/authorization'
 
 function queryValue(value: unknown) {
   return typeof value === 'string' && value.trim() && value !== 'all'
@@ -11,8 +12,13 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const service = new DrivingSchoolService()
 
-  return service.getAllDrivingSchools({
+  const schools = await service.getAllDrivingSchools({
     location: queryValue(query.location),
     category: queryValue(query.category)
   })
+
+  const user = await getAuthenticatedOrdinaryUser(event)
+  return user?.managedSchoolId
+    ? schools.filter(school => school.id === user.managedSchoolId)
+    : schools
 })

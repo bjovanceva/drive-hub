@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { schoolRoutes } from '#shared/constants/routes'
 import type { SchoolDirectoryItemDto } from '~/types/presentation/schools'
-import type { UpdateVehicleInstructorInput, UserSummaryDto, VehicleAssignmentDto } from '~/types/driving-school'
+import type { UpdateVehicleInstructorInput, VehicleAssignmentDto } from '~/types/driving-school'
 
 const props = defineProps<{ school: SchoolDirectoryItemDto, position: number }>()
 
@@ -17,9 +17,11 @@ const selectedCategoryId = ref<number | null>(null)
 const categoryMessage = ref('')
 const categoryError = ref('')
 const isCategorySaving = ref(false)
+const { user } = useAuth()
+const canManage = computed(() => user.value?.managedSchoolId != null && String(user.value.managedSchoolId) === props.school.id)
 
-const { data: userOptions, status: usersStatus } = await useFetch<UserSummaryDto[]>('/api/users', {
-  key: `users-list`
+const { data: instructorOptions, status: instructorsStatus } = await useFetch<Array<{ id: number, name: string, email: string }>>(`/api/driving-schools/${props.school.id}/instructors`, {
+  key: `driving-school-instructors-${props.school.id}`
 })
 const { data: schoolVehicles, status: vehiclesStatus } = await useFetch<VehicleAssignmentDto[]>(`/api/driving-schools/${props.school.id}/vehicles`, {
   key: `driving-school-vehicles-${props.school.id}`
@@ -29,7 +31,7 @@ const { data: categoryOptions, status: categoriesStatus } = await useFetch<Array
 })
 
 const availableVehicles = computed(() => schoolVehicles.value ?? [])
-const availableUsers = computed(() => userOptions.value ?? [])
+const availableUsers = computed(() => instructorOptions.value ?? [])
 
 watch(
   () => availableVehicles.value,
@@ -191,9 +193,9 @@ async function assignInstructorToVehicle() {
         <p>{{ school.vehicles }} · {{ school.languages.join(' / ') }}</p>
         <div class="dh-directory-card__actions">
           <NuxtLink class="dh-directory-card__view-button" :to="schoolRoutes.detail(school.id)">View details</NuxtLink>
-          <button type="button" class="dh-directory-card__edit-button" @click.stop="openEditor">Edit</button>
-          <button type="button" class="dh-directory-card__add-category-button" @click.stop="openCategoryEditor">Add category</button>
-          <NuxtLink class="dh-directory-card__add-car-button" :to="schoolRoutes.createVehicle(school.id)" @click.stop>Add car</NuxtLink>
+          <button v-if="canManage" type="button" class="dh-directory-card__edit-button" @click.stop="openEditor">Edit</button>
+          <button v-if="canManage" type="button" class="dh-directory-card__add-category-button" @click.stop="openCategoryEditor">Add category</button>
+          <NuxtLink v-if="canManage" class="dh-directory-card__add-car-button" :to="schoolRoutes.createVehicle(school.id)" @click.stop>Add car</NuxtLink>
         </div>
       </div>
     </div>
@@ -245,7 +247,7 @@ async function assignInstructorToVehicle() {
 
           <label>
             Instructor
-            <select v-model.number="selectedInstructorId" :disabled="usersStatus === 'pending' || !availableUsers.length">
+            <select v-model.number="selectedInstructorId" :disabled="instructorsStatus === 'pending' || !availableUsers.length">
               <option :value="null">Select instructor</option>
               <option v-for="user in availableUsers" :key="user.id" :value="user.id">
                 {{ user.name }} ({{ user.email }})

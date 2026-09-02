@@ -73,13 +73,20 @@ export class VehicleService {
 
       const instructor = await prisma.user.findUnique({
         where: { id: instructorId },
-        select: { id: true }
+        select: { id: true, instructorSchoolId: true }
       })
 
       if (!instructor) {
         throw createError({
           statusCode: 404,
           statusMessage: 'Selected instructor user was not found'
+        })
+      }
+
+      if (instructor.instructorSchoolId !== drivingSchoolId) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Selected instructor does not belong to this driving school'
         })
       }
     }
@@ -131,13 +138,20 @@ export class VehicleService {
 
       const instructor = await prisma.user.findUnique({
         where: { id: instructorId },
-        select: { id: true }
+        select: { id: true, instructorSchoolId: true }
       })
 
       if (!instructor) {
         throw createError({
           statusCode: 404,
           statusMessage: 'Selected instructor user was not found'
+        })
+      }
+
+      if (instructor.instructorSchoolId !== existingVehicle.drivingSchoolId) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Selected instructor does not belong to this driving school'
         })
       }
     }

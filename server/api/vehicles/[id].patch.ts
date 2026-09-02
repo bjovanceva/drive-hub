@@ -1,4 +1,6 @@
 import { VehicleService } from '../../services/VehicleService'
+import prisma from '../../utils/prisma'
+import { requireSchoolManager } from '../../utils/authorization'
 
 /** PATCH /api/vehicles/:id updates the assigned instructor on a vehicle. */
 export default defineEventHandler(async (event) => {
@@ -11,6 +13,17 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Invalid vehicle ID'
     })
   }
+
+  const vehicleSchool = await prisma.vehicle.findUnique({
+    where: { id: vehicleId },
+    select: { drivingSchoolId: true }
+  })
+
+  if (!vehicleSchool) {
+    throw createError({ statusCode: 404, statusMessage: 'Vehicle not found' })
+  }
+
+  await requireSchoolManager(event, vehicleSchool.drivingSchoolId)
 
   const instructorId = body.instructorId == null
     ? null

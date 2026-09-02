@@ -1,4 +1,5 @@
 import prisma from '../../../utils/prisma'
+import { requireSchoolManager } from '../../../utils/authorization'
 
 /** POST /api/driving-schools/:id/categories adds a category to a school. */
 export default defineEventHandler(async (event) => {
@@ -12,6 +13,8 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Invalid driving school ID'
     })
   }
+
+  await requireSchoolManager(event, schoolId)
 
   if (!Number.isInteger(categoryId) || categoryId <= 0) {
     throw createError({
