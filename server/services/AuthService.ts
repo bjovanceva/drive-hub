@@ -54,7 +54,7 @@ export class AuthService {
     }
   }
 
-  async loginOrdinaryUser(command: LoginUserCommand) {
+  async login(command: LoginUserCommand) {
     const email = command.email.trim().toLowerCase()
     const user = await this.users.findForAuthentication(email)
     const storedHash = user?.password ?? await this.getFallbackPasswordHash()
@@ -67,13 +67,6 @@ export class AuthService {
       })
     }
 
-    if (user.role !== 'USER') {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Administrator accounts must use the admin panel'
-      })
-    }
-
     if (passwordNeedsReHash(user.password)) {
       await this.users.updatePassword(user.id, await hashPassword(command.password))
     }
@@ -81,18 +74,73 @@ export class AuthService {
     return this.toSessionUser(user)
   }
 
-  async getOrdinaryUser(id: number) {
+  async getAuthenticatedUser(id: number) {
     const user = await this.users.findForSession(id)
 
     if (!user) {
       throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
     }
 
+    return this.toSessionUser(user)
+  }
+
+  async getOrdinaryUser(id: number) {
+    const user = await this.getAuthenticatedUser(id)
+
     if (user.role !== 'USER') {
       throw createError({ statusCode: 403, statusMessage: 'Ordinary user access required' })
     }
 
-    return this.toSessionUser(user)
+    return user
+  }
+
+  async updateProfile(id: number, command: { name: string, email: string, currentPassword?: string }) {
+    const user = await this.getOrdinaryUserForSettings(id)
+    const email = command.email.trim().toLowerCase()
+
+    if (email !== user.email) {
+      await this.checkCurrentPassword(user.password, command.currentPassword)
+    }
+
+    try {
+      return this.toSessionUser(await this.users.updateOrdinaryUser(id, {
+        name: command.name.trim(),
+        email
+      }))
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw createError({ statusCode: 409, statusMessage: 'An account with this email already exists' })
+      }
+      throw error
+    }
+  }
+
+  async changePassword(id: number, command: { currentPassword: string, newPassword: string }) {
+    const user = await this.getOrdinaryUserForSettings(id)
+    await this.checkCurrentPassword(user.password, command.currentPassword)
+
+    if (command.currentPassword === command.newPassword) {
+      throw createError({ statusCode: 400, statusMessage: 'Choose a different new password' })
+    }
+
+    return this.toSessionUser(await this.users.updateOrdinaryUser(id, {
+      password: await hashPassword(command.newPassword)
+    }))
+  }
+
+  private async getOrdinaryUserForSettings(id: number) {
+    const user = await this.users.findForSession(id)
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
+    if (user.role !== 'USER') {
+      throw createError({ statusCode: 403, statusMessage: 'Ordinary user access required' })
+    }
+    return user
+  }
+
+  private async checkCurrentPassword(storedHash: string, password?: string) {
+    if (!password || !await verifyPassword(storedHash, password)) {
+      throw createError({ statusCode: 400, statusMessage: 'Current password is incorrect' })
+    }
   }
 
   private toSessionUser(user: PersistedAuthUser) {

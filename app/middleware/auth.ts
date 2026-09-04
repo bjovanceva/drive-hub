@@ -1,4 +1,4 @@
-import { authRoutes } from '#shared/constants/routes'
+import { adminRoutes, authRoutes } from '#shared/constants/routes'
 
 /** Allows only authenticated ordinary users to enter public-app user routes. */
 export default defineNuxtRouteMiddleware((to) => {
@@ -12,6 +12,6 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 
   if (user.value?.role !== 'USER') {
-    return navigateTo('/')
+    return navigateTo(user.value?.role === 'ADMIN' ? adminRoutes.dashboard : '/')
   }
 })

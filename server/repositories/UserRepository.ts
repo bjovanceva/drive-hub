@@ -31,6 +31,7 @@ export class UserRepository {
 
   async findAllForSelection() {
     return prisma.user.findMany({
+      where: { role: 'USER' },
       select: {
         id: true,
         name: true,
@@ -82,6 +83,14 @@ export class UserRepository {
       where: { id },
       data: { password },
       select: { id: true }
+    })
+  }
+
+  async updateOrdinaryUser(id: number, data: { name?: string, email?: string, password?: string }) {
+    return prisma.user.update({
+      where: { id, role: 'USER' },
+      data,
+      select: authUserSelect
     })
   }
 }

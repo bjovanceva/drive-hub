@@ -8,6 +8,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   runtimeConfig: {
     session: {
+      password: '',
       maxAge: 60 * 60 * 24 * 7
     }
   },

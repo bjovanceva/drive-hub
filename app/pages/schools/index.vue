@@ -13,6 +13,7 @@ useSeoMeta({
 type SortOption = 'recommended' | 'rating' | 'price'
 
 const route = useRoute()
+const { user } = useUserSession()
 
 const {
   locationOptions: backendLocations,
@@ -123,7 +124,7 @@ function retryFetch() {
           </div>
 
           <div class="dh-schools-page__results-actions">
-            <NuxtLink class="dh-schools-page__cta" :to="schoolRoutes.create">Add a school →</NuxtLink>
+            <NuxtLink v-if="user?.role === 'ADMIN'" class="dh-schools-page__cta" :to="schoolRoutes.create">Add a school →</NuxtLink>
 
             <label class="dh-schools-page__sort">
               <span>Sort results</span>

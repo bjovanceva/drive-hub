@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-definePageMeta({ layout: 'default' })
+definePageMeta({ layout: 'default', middleware: 'admin' })
 
 useSeoMeta({
   title: 'Create driving school | Drive Hub',

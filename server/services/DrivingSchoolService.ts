@@ -85,7 +85,7 @@ export class DrivingSchoolService {
     }
 
     const managerId = command.managerId
-    if (!Number.isInteger(managerId) || managerId! <= 0) {
+    if (typeof managerId !== 'number' || !Number.isInteger(managerId) || managerId <= 0) {
       throw createError({
         statusCode: 400,
         statusMessage: 'A school manager must be selected'
@@ -97,6 +97,13 @@ export class DrivingSchoolService {
       throw createError({
         statusCode: 404,
         statusMessage: 'Selected manager user was not found'
+      })
+    }
+
+    if (selectedUser.role !== 'USER') {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Administrator accounts cannot be assigned to a driving school'
       })
     }
 

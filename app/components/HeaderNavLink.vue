@@ -1,12 +1,24 @@
 <script lang="ts" setup>
+import { isNavigationActive } from '~/utils/navigation'
+
 const props = defineProps<{
   label: string
   to: string
+  variant?: 'admin'
 }>()
+
+const route = useRoute()
+const router = useRouter()
+const isActive = computed(() => isNavigationActive(route, router.resolve(props.to)))
 </script>
 
 <template>
-  <NuxtLink class="dh-header-link" :to="props.to">
+  <NuxtLink
+    class="dh-header-link"
+    :class="{ 'dh-header-link--active': isActive, 'dh-header-link--admin': props.variant === 'admin' }"
+    :to="props.to"
+    :aria-current="isActive ? 'page' : undefined"
+  >
     <span
       class="dh-header-link__shape dh-header-link__shape--top"
       aria-hidden="true"
@@ -65,12 +77,14 @@ const props = defineProps<{
   transition: color 150ms ease;
 }
 
+.dh-header-link--active .dh-header-link__shape,
 .dh-header-link:hover .dh-header-link__shape,
 .dh-header-link:focus-visible .dh-header-link__shape {
   opacity: 1;
   transform: translate3d(0, 0, 0);
 }
 
+.dh-header-link--active .dh-header-link__label,
 .dh-header-link:hover .dh-header-link__label,
 .dh-header-link:focus-visible .dh-header-link__label {
   color: var(--dh-color-text-primary, #080a0d);
@@ -79,6 +93,33 @@ const props = defineProps<{
 .dh-header-link:focus-visible {
   outline: 2px solid var(--dh-color-text-hover, #c9f24d);
   outline-offset: 6px;
+}
+
+.dh-header-link--admin {
+  min-height: 2.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--dh-color-text-hover, #c9f24d);
+  background: #202a13;
+}
+
+.dh-header-link--admin .dh-header-link__label {
+  color: var(--dh-color-text-hover, #c9f24d);
+}
+
+.dh-header-link--admin .dh-header-link__shape {
+  inset: 0;
+}
+
+.dh-header-link--admin.dh-header-link--active,
+.dh-header-link--admin:hover,
+.dh-header-link--admin:focus-visible {
+  background: var(--dh-color-text-hover, #c9f24d);
+}
+
+.dh-header-link--admin.dh-header-link--active .dh-header-link__label,
+.dh-header-link--admin:hover .dh-header-link__label,
+.dh-header-link--admin:focus-visible .dh-header-link__label {
+  color: var(--dh-color-text-primary, #080a0d);
 }
 
 @media (prefers-reduced-motion: reduce) {

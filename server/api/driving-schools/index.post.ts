@@ -1,7 +1,9 @@
 import { DrivingSchoolService } from '../../services/DrivingSchoolService'
+import { requireAdmin } from '../../utils/authorization'
 
 /** POST /api/driving-schools validates and persists a new school. */
 export default defineEventHandler(async (event) => {
+  await requireAdmin(event)
   const body = await readBody(event) ?? {}
 
   const service = new DrivingSchoolService()

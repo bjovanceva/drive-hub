@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import driveHubLogo from '~/assets/Drive-Hub-Logo.svg'
 import HeaderNavLink from '~/components/HeaderNavLink.vue'
-import { authRoutes, userRoutes } from '#shared/constants/routes'
+import { adminRoutes, authRoutes, userRoutes } from '#shared/constants/routes'
+import { isNavigationActive } from '~/utils/navigation'
 
 type HeaderLink = {
   label: string
@@ -23,8 +24,12 @@ const props = withDefaults(defineProps<{
 })
 
 const route = useRoute()
+const router = useRouter()
 const isMenuOpen = ref(false)
 const { loggedIn, user, logout, mutationStatus } = useAuth()
+const isAdmin = computed(() => user.value?.role === 'ADMIN')
+const isProfileActive = computed(() => isNavigationActive(route, router.resolve(userRoutes.profile)))
+const isApplicationActive = computed(() => isNavigationActive(route, router.resolve(props.applicationTo)))
 
 function closeMenu() {
   isMenuOpen.value = false
@@ -48,71 +53,48 @@ watch(() => route.fullPath, closeMenu)
 <template>
   <header class="dh-header" data-node-id="29:3">
     <NuxtLink class="dh-header__brand" to="/" aria-label="Drive Hub home" @click="closeMenu">
-      <img
-        class="dh-header__logo"
-        :src="driveHubLogo"
-        alt=""
-        width="32"
-        height="28"
-      >
+      <img class="dh-header__logo" :src="driveHubLogo" alt="" width="32" height="28">
       <span>Drive / Hub</span>
     </NuxtLink>
 
-    <div
-      id="drive-hub-header-menu"
-      class="dh-header__menu"
-      :class="{ 'dh-header__menu--open': isMenuOpen }"
-    >
+    <div id="drive-hub-header-menu" class="dh-header__menu" :class="{ 'dh-header__menu--open': isMenuOpen }">
       <nav class="dh-header__navigation" aria-label="Primary navigation">
-        <HeaderNavLink
-          v-for="item in props.navigation"
-          :key="item.label"
-          :label="item.label"
-          :to="item.to"
-          @click="closeMenu"
-        />
+        <HeaderNavLink v-for="item in props.navigation" :key="item.label" :label="item.label" :to="item.to"
+          @click="closeMenu" />
       </nav>
+
+      <HeaderNavLink v-if="isAdmin" class="dh-header__admin" variant="admin" label="Administration"
+        :to="adminRoutes.dashboard" @click="closeMenu" />
 
       <span class="dh-header__spacer" aria-hidden="true" />
 
-      <HeaderNavLink
-        v-if="!loggedIn"
-        class="dh-header__sign-in"
-        label="Sign in"
-        :to="props.signInTo"
-        @click="closeMenu"
-      />
+      <HeaderNavLink v-if="!loggedIn" class="dh-header__sign-in" label="Sign in" :to="props.signInTo"
+        @click="closeMenu" />
 
       <template v-else>
-        <HeaderNavLink
-          class="dh-header__sign-in"
-          :label="user?.name || 'My account'"
-          :to="props.applicationTo"
-          @click="closeMenu"
-        />
-        <button
-          class="dh-header__sign-out"
-          type="button"
-          :disabled="mutationStatus === 'pending'"
-          @click="signOut"
-        >
+        <span v-if="isAdmin" class="dh-header__identity" :title="user?.name">{{ user?.name }}</span>
+        <NuxtLink v-else class="dh-header__account" :to="userRoutes.profile"
+          :class="{ 'dh-header__account--active': isProfileActive }"
+          :aria-current="isProfileActive ? 'page' : undefined"
+          :title="user?.name" :aria-label="`${user?.name || 'My account'} — Account settings`" @click="closeMenu">
+          <span>{{ user?.name || 'My account' }}</span>
+        </NuxtLink>
+        <button class="dh-header__sign-out" type="button" :disabled="mutationStatus === 'pending'" @click="signOut">
           Sign out
         </button>
       </template>
 
-      <NuxtLink class="dh-header__application" :to="props.applicationTo" @click="closeMenu">
+      <NuxtLink v-if="!isAdmin" class="dh-header__application"
+        :class="{ 'dh-header__application--active': isApplicationActive }"
+        :aria-current="isApplicationActive ? 'page' : undefined"
+        :to="props.applicationTo" @click="closeMenu">
         Start application →
       </NuxtLink>
     </div>
 
-    <button
-      class="dh-header__menu-toggle"
-      type="button"
-      :aria-expanded="isMenuOpen"
-      aria-controls="drive-hub-header-menu"
-      :aria-label="isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'"
-      @click="toggleMenu"
-    >
+    <button class="dh-header__menu-toggle" type="button" :aria-expanded="isMenuOpen"
+      aria-controls="drive-hub-header-menu" :aria-label="isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'"
+      @click="toggleMenu">
       <span class="dh-header__menu-icon" :class="{ 'dh-header__menu-icon--open': isMenuOpen }" aria-hidden="true">
         <span />
         <span />
@@ -167,6 +149,7 @@ watch(() => route.fullPath, closeMenu)
 }
 
 .dh-header__sign-out {
+  flex-shrink: 0;
   padding: 0;
   border: 0;
   background: transparent;
@@ -178,8 +161,14 @@ watch(() => route.fullPath, closeMenu)
   cursor: pointer;
 }
 
-.dh-header__sign-out:hover { color: var(--dh-color-text-hover); }
-.dh-header__sign-out:disabled { cursor: wait; opacity: 0.6; }
+.dh-header__sign-out:hover {
+  color: var(--dh-color-text-hover);
+}
+
+.dh-header__sign-out:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 
 .dh-header__brand {
   display: inline-flex;
@@ -229,6 +218,53 @@ watch(() => route.fullPath, closeMenu)
   min-width: 1px;
 }
 
+.dh-header__account,
+.dh-header__identity {
+  min-width: 0;
+  max-width: 13rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.dh-header__identity {
+  overflow: hidden;
+  color: #aeb5bb;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-header__account {
+  display: inline-flex;
+  flex: 0 1 13rem;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid #424950;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.dh-header__account span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-header__account:hover,
+.dh-header__account--active {
+  border-color: var(--dh-color-text-hover);
+  background: #202a13;
+}
+
+.dh-header .dh-header__account--active {
+  color: var(--dh-color-text-hover);
+}
+
+.dh-header__account:focus-visible {
+  outline: 2px solid var(--dh-color-text-hover);
+  outline-offset: 3px;
+}
+
 .dh-header__sign-in {
   flex: 0 0 auto;
 }
@@ -248,6 +284,7 @@ watch(() => route.fullPath, closeMenu)
   transition: background-color 160ms ease, color 160ms ease;
 }
 
+.dh-header__application--active,
 .dh-header__application:hover {
   background: var(--dh-color-text-hover);
 }
@@ -360,6 +397,29 @@ watch(() => route.fullPath, closeMenu)
     margin-block: 0.5rem;
   }
 
+  .dh-header__admin {
+    width: 100%;
+    margin-block: 1rem 0.5rem;
+  }
+
+  .dh-header__account,
+  .dh-header__identity {
+    width: 100%;
+    max-width: none;
+    margin-block: 0.75rem;
+    text-align: center;
+  }
+
+  .dh-header__account {
+    flex-basis: auto;
+    justify-content: center;
+  }
+
+  .dh-header__sign-out {
+    min-height: 2.75rem;
+    margin-bottom: 0.75rem;
+  }
+
   .dh-header__application {
     width: 100%;
     height: 3rem;
@@ -450,6 +510,7 @@ watch(() => route.fullPath, closeMenu)
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .dh-header__menu,
   .dh-header__menu-icon span {
     transition: none;

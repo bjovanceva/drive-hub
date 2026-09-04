@@ -26,22 +26,34 @@ export async function requireSchoolManager(event: H3Event, schoolId: number) {
   return user
 }
 
-/** Returns the current ordinary user when a valid session is present. */
-export async function getAuthenticatedOrdinaryUser(event: H3Event) {
+/** Requires an administrator role checked against the current database record. */
+export async function requireAdmin(event: H3Event) {
+  const session = await requireUserSession(event)
+  const user = await new AuthService().getAuthenticatedUser(session.user.id)
+
+  if (user.role !== 'ADMIN') {
+    throw createError({ statusCode: 403, statusMessage: 'Administrator access required' })
+  }
+
+  return user
+}
+
+/** Returns the current user of either role when a valid session is present. */
+export async function getAuthenticatedUser(event: H3Event) {
   const session = await getUserSession(event)
 
   if (!session.user?.id) return null
 
-  return new AuthService().getOrdinaryUser(session.user.id)
+  return new AuthService().getAuthenticatedUser(session.user.id)
 }
 
 /** Restricts school reads for managers while keeping the public directory open. */
 export async function restrictManagerToSchool(event: H3Event, schoolId: number) {
-  const user = await getAuthenticatedOrdinaryUser(event)
+  const user = await getAuthenticatedUser(event)
 
   if (!user) return null
 
-  if (user.managedSchoolId !== null && user.managedSchoolId !== schoolId) {
+  if (user.role === 'USER' && user.managedSchoolId !== null && user.managedSchoolId !== schoolId) {
     throw createError({
       statusCode: 403,
       statusMessage: 'Managers can only view their own driving school'

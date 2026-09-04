@@ -152,7 +152,7 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
           :action-to="pageData.featuredSchools.actionTo" />
 
         <div class="dh-home__schools">
-          <div v-if="schoolsStatus === 'success' && featuredSchools.length">
+          <template v-if="schoolsStatus === 'success' && featuredSchools.length">
             <div v-for="(school, schoolIndex) in featuredSchools" :id="String(school.id)" :key="school.id">
               <SchoolCard
                 :school-name="school.name"
@@ -160,11 +160,11 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
                 :licence-type="school.categories.length ? school.categories.map(item => item.toUpperCase()).join(' · ') : 'Categories on request'"
                 :price="formatPrice(school.priceFrom)"
                 :verified="school.verified"
-                :to="`/schools#${school.id}`"
+                :to="`/schools/${school.id}`"
                 :reveal-delay="schoolIndex * 120"
               />
             </div>
-          </div>
+          </template>
           <div v-else-if="schoolsStatus === 'pending'">
             Loading schools…
           </div>

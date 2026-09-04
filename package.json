@@ -3,13 +3,20 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "admin:create": "node --env-file-if-exists=.env scripts/admin.mjs create",
+    "admin:update": "node --env-file-if-exists=.env scripts/admin.mjs update",
+    "test:accounts": "node --test tests/accounts.test.mjs",
+    "test:admin": "node --env-file-if-exists=.env --test tests/admin.integration.test.mjs",
+    "db:generate": "prisma generate",
     "build": "nuxt build",
     "db:seed": "prisma db seed",
     "db:seed:categories": "prisma db execute --file prisma/seed-categories.sql",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
+    "test:admin:http": "node --env-file-if-exists=.env --test tests/admin.http.test.mjs"
   },
   "dependencies": {
     "@adonisjs/hash": "^9.1.1",
@@ -22,5 +29,10 @@
     "vue": "^3.5.41",
     "vue-router": "^5.2.0",
     "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6",
+    "typescript": "~5.9.3",
+    "vue-tsc": "^3.3.11"
   }
 }

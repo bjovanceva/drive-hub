@@ -16,3 +16,14 @@ export const loginUserSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1).max(128)
 })
+
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  email: z.string().trim().toLowerCase().email(),
+  currentPassword: z.string().max(128).optional()
+}).strict()
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Enter your current password').max(128),
+  newPassword: password
+}).strict()

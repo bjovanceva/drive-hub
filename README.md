@@ -46,7 +46,7 @@ the variable is omitted:
 | School manager | `manager@drivehub.test` |
 | Global admin | `admin@drivehub.test` |
 
-The public login intentionally rejects the global admin account. The seed is
+All accounts use `/login`; administrators land on `/administration`. The seed is
 blocked when `NODE_ENV=production` unless `ALLOW_PRODUCTION_SEED=true` is set
 explicitly.
 
@@ -81,18 +81,118 @@ The public authentication endpoints are:
 
 - `POST /api/auth/register` — creates an ordinary `USER` account and starts a
   session. The request cannot choose a role.
-- `POST /api/auth/login` — signs in ordinary users. `ADMIN` accounts are
-  rejected because they are reserved for the future admin panel.
+- `POST /api/auth/login` — signs in both `USER` and `ADMIN` accounts.
 - `POST /api/auth/logout` — clears the current session.
 
-`/start-application` is the first protected page. Its page middleware redirects
-guests to `/login`, while `/api/applications/context` independently validates
-the server session and current database role.
+Pages opt into route protection with `definePageMeta({ middleware: ... })`:
+
+- `app/middleware/auth.ts` protects ordinary-user pages such as
+  `/start-application`. Guests go to `/login?redirect=...`; administrators go to
+  `/administration`.
+- `app/middleware/admin.ts` protects `/administration`. Guests go to the shared
+  login; ordinary users go to `/start-application`.
+- `app/middleware/guest.ts` sends signed-in visitors away from login and
+  registration to the landing page for their role.
+
+Route constants live in `shared/constants/routes.ts`. After login,
+administrators go to `/administration`; ordinary users follow a local return
+path or default to `/start-application`. Registration always creates `USER`.
+
+Backend access is enforced separately by helpers in
+`server/utils/authorization.ts`: `requireOrdinaryUser`, `requireSchoolManager`,
+and `requireAdmin`. They validate the session and current database role.
+`/api/applications/context` uses the ordinary-user guard and
+`/api/admin/context` uses the administrator guard. Public school reads accept
+either role, while ordinary school managers retain their school restrictions.
+
+Authorization is opt-in per endpoint. School creation, school deletion, and
+the user-selection API require an administrator, including the legacy endpoints.
 
 `UserRole` represents global access (`USER` or `ADMIN`). School-specific access
 remains relational: a user may be connected to a school as a student,
 instructor, or manager. This keeps future school dashboards and permissions
 separate from the platform-wide admin role.
+
+## Account settings
+
+Ordinary users open `/profile` from their name in the header. They can update
+their name and email or change their password. Email and password changes
+require their current password. The account APIs check the database role and
+derive the user ID from the session; requests cannot set roles or school
+relationships. Successful saves refresh the current session and header.
+Other existing sessions retain their cookies until logout or expiry.
+
+Administrators have no profile page or account-settings API access. Their
+header name is plain text; Administration is their navigation button.
+
+## Administrator commands
+
+Run these commands from the project directory. They load `DATABASE_URL` from
+the environment or `.env` and prompt for a password and confirmation with
+hidden input. Admin passwords have no strength requirements; they only need to
+be non-empty and fit the sign-in form's 128-character limit.
+
+```bash
+npm run admin:create -- --email admin@example.com --name "Administrator"
+npm run admin:update -- --email admin@example.com
+npm run admin:update -- --email admin@example.com --new-email new-admin@example.com --name "New Administrator"
+```
+
+`admin:create` adds a new `ADMIN` identity with no school relationships.
+`admin:update` preserves the existing admin's ID, updates the supplied name
+and/or email, and replaces the password. It requires an existing `ADMIN`;
+neither command converts or overwrites an ordinary user. Administrators are
+excluded from school-manager selection and cannot be assigned by the school
+creation API. No existing accounts are deleted by these commands.
+
+For non-interactive use, supply `DRIVE_HUB_ADMIN_PASSWORD` through the process
+environment. There is no default password or password CLI argument. Use
+`npm run admin:create -- --help` for command help. These commands do not revoke
+already-issued session cookies.
+
+Run the focused account and administrator-command tests with
+`npm run test:accounts` (Node 22.13+). The tests use in-memory repositories and
+query doubles, so they do not modify the database.
+
+## Administration panel
+
+Open `/administration` as an administrator. Its three sections are:
+
+- **Users:** search/filter accounts, create or edit ordinary users, reset their
+  passwords, choose or remove one student, instructor, or manager school role,
+  and delete accounts. Administrator identities are listed read-only and remain
+  CLI-managed.
+- **Schools:** create, edit and delete schools. Open a school to view and manage
+  its manager, students, instructors, offered categories, vehicles and vehicle
+  instructor assignments. A user can have only one school role at one school at a time.
+- **Applicants:** filter applications by person, school or status; create, edit,
+  approve, reject, cancel or delete an application. Approval enrolls its user
+  at the selected school. A student at another school must be transferred in
+  Users first. Managers and instructors must change roles in Users before approval. Other status changes and application deletion preserve enrollment.
+
+All admin reads and writes check the current database role. Mutations use
+serializable transactions. Changing an instructor's school clears their old
+vehicle assignments and preferred-instructor links. A manager cannot manage
+two schools. Changing a role in Users atomically removes the previous role; assignment shortcuts reject conflicting roles. Categories used by applications cannot be removed from a school
+until those applications are updated or deleted.
+
+Deletion dialogs explain the impact. Deleting a user removes their applications
+and clears manager/instructor references. Deleting a school removes its vehicles
+and applications and unassigns its students and instructors, preserving the user
+accounts. These deletions are permanent.
+
+After schema changes, run `npm run db:generate` to refresh the generated Prisma
+client. Migration `20260904143000_ensure_application_instructor_relation` adds
+the nullable preferred-instructor column, foreign key and index if missing.
+It was applied to the current local database without resetting any data. This
+checkout has older local migration names that differ from migration history;
+reconcile those separately before deploying the entire history to that database.
+
+`npm run test:admin` runs integration tests against `DATABASE_URL` in a randomly
+named disposable schema, applying migrations there and removing it afterward.
+It verifies CRUD, relationship rules, approval, transaction rollback and deletion
+cleanup without modifying public tables. The database account needs permission
+to create schemas. `npm run test:accounts` runs the existing account checks.
 
 ## Development Server
 
@@ -147,3 +247,35 @@ bun run preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+
+### Admin code organization and checks
+
+`app/pages/administration.vue` handles navigation and composes the section panels.
+`app/components/admin/` contains the user, school, applicant, and school-detail
+views; `forms/` contains a typed form for each resource. `AdminModal` handles native
+dialog behavior and focus restoration. `useAdminWorkspace` owns loading, saves,
+deletions, pending state, and errors. Form initialization and display helpers live
+in `app/utils/admin/`. Applicant school filters are stored in the URL.
+
+On the server, `AdminService` coordinates transactions, with resource rules in
+`server/services/admin/`. The membership endpoint updates only the requested
+student/instructor relationship, preserving other account fields. Admin API
+handlers still check the current database role before every operation.
+
+Run `npm run typecheck`, `npm run build`, `npm run test:accounts`, and
+`npm run test:admin` before changing this flow. Database tests import the actual
+services, inject a disposable database and password hasher, and verify relationship
+cleanup, rollback, access restrictions, and preservation of unrelated fields.
+
+### Admin route regression checks
+
+Run `npm run build && npm run test:admin:http` to exercise the real Nitro server
+with authenticated HTTP requests. This suite verifies every resource's create,
+edit and delete routes, membership assignment, application approval, exclusive
+school roles, and guest/ordinary-user access denial. It uses a temporary local
+port and a disposable PostgreSQL schema, and removes both afterward. The database
+connection supports the standard `schema` query parameter in `DATABASE_URL`.
+
+Keep all resource routes under `server/api/admin/[resource]/`, including
+`[id]/membership.patch.ts` (validated for users only). A separate static `users/`
+branch can take routing precedence and hide generic user edit/delete endpoints.

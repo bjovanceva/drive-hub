@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma'
+import { requireCompatibleMembership } from '../services/admin/relations'
 
 export interface DrivingSchoolFilters {
   location?: string
@@ -77,18 +78,22 @@ export class DrivingSchoolRepository {
   async create(data: CreateDrivingSchoolData) {
     const { categoryIds, managerId, ...school } = data
 
-    return prisma.drivingSchool.create({
-      data: {
-        ...school,
-        manager: managerId
-          ? { connect: { id: managerId } }
-          : undefined,
-        categories: categoryIds?.length
-          ? { connect: categoryIds.map(id => ({ id })) }
-          : undefined
+    return prisma.$transaction(
+      async (tx) => {
+        if (managerId) await requireCompatibleMembership(tx, managerId, 'manager')
+        return tx.drivingSchool.create({
+          data: {
+            ...school,
+            manager: managerId ? { connect: { id: managerId } } : undefined,
+            categories: categoryIds?.length
+              ? { connect: categoryIds.map((id) => ({ id })) }
+              : undefined
+          },
+          include: schoolRelations
+        })
       },
-      include: schoolRelations
-    })
+      { isolationLevel: 'Serializable' }
+    )
   }
 
   async getUserById(id: number) {

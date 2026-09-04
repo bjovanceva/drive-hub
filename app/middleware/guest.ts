@@ -1,10 +1,10 @@
-import { userRoutes } from '#shared/constants/routes'
+import { adminRoutes, userRoutes } from '#shared/constants/routes'
 
-/** Keeps signed-in ordinary users out of the login and registration pages. */
+/** Sends signed-in users to the landing page for their role. */
 export default defineNuxtRouteMiddleware(() => {
   const { loggedIn, user } = useUserSession()
 
-  if (loggedIn.value && user.value?.role === 'USER') {
-    return navigateTo(userRoutes.startApplication)
+  if (loggedIn.value) {
+    return navigateTo(user.value?.role === 'ADMIN' ? adminRoutes.dashboard : userRoutes.startApplication)
   }
 })

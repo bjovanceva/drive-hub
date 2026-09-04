@@ -1,4 +1,4 @@
-/** Public authentication routes for ordinary Drive Hub users. */
+/** Shared authentication routes for Drive Hub users and administrators. */
 export const authRoutes = {
   login: '/login',
   register: '/register'
@@ -9,17 +9,17 @@ export const schoolRoutes = {
   list: '/schools',
   detail: (schoolId: number | string) => `/schools/${schoolId}`,
   create: '/schools/create',
-  createVehicle: (schoolId: number) => `/schools/${schoolId}/cars/create`,
+  createVehicle: (schoolId: number | string) => `/schools/${schoolId}/cars/create`,
   addCategory: (schoolId: number) => `/schools/${schoolId}/categories/add`
 } as const
 
 /** Routes that require an authenticated USER session. */
 export const userRoutes = {
+  profile: '/profile',
   startApplication: '/start-application'
 } as const
 
-/** Reserved paths for the future, separately authenticated admin panel. */
-export const futureAdminRoutes = {
-  login: '/admin/login',
-  dashboard: '/admin'
+/** Routes that require an authenticated ADMIN session. */
+export const adminRoutes = {
+  dashboard: '/administration'
 } as const

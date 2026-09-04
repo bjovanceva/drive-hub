@@ -1,5 +1,5 @@
 import { DrivingSchoolService } from '../../services/DrivingSchoolService'
-import { getAuthenticatedOrdinaryUser } from '../../utils/authorization'
+import { getAuthenticatedUser } from '../../utils/authorization'
 
 function queryValue(value: unknown) {
   return typeof value === 'string' && value.trim() && value !== 'all'
@@ -17,8 +17,8 @@ export default defineEventHandler(async (event) => {
     category: queryValue(query.category)
   })
 
-  const user = await getAuthenticatedOrdinaryUser(event)
-  return user?.managedSchoolId
+  const user = await getAuthenticatedUser(event)
+  return user?.role === 'USER' && user.managedSchoolId
     ? schools.filter(school => school.id === user.managedSchoolId)
     : schools
 })

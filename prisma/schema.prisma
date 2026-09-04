@@ -109,4 +109,5 @@ model Application {
   preferredInstructor   User?          @relation("PreferredInstructorApplications", fields: [preferredInstructorId], references: [id], onDelete: SetNull)
 
   @@unique([userId, drivingSchoolId, categoryId])
+  @@index([preferredInstructorId])
 }
