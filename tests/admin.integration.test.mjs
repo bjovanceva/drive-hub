@@ -319,6 +319,13 @@ test(
             ...applicationInput,
             status: 'APPROVED'
           })
+          const training = await database.trainingEnrollment.findUniqueOrThrow({
+            where: { applicationId: application.id }
+          })
+          assert.equal(training.status, 'ACTIVE')
+          assert.equal(training.studentId, student.id)
+          assert.equal(training.instructorId, instructor.id)
+          assert.equal(training.vehicleId, vehicle.id)
           assert.equal(
             (await database.user.findUniqueOrThrow({ where: { id: student.id } })).drivingSchoolId,
             schoolA.id
@@ -345,6 +352,149 @@ test(
         }
       )
       await t.test(
+        'approval enforces instructor capacity and assigns an eligible instructor without a preference',
+        async () => {
+          const secondInstructor = await service.save(
+            'users',
+            null,
+            userInput('second-instructor@test.invalid')
+          )
+          await updateUser(secondInstructor.id, { instructorSchoolId: schoolA.id })
+
+          for (const [index, status] of ['ACTIVE', 'PAUSED'].entries()) {
+            const extraStudent = await service.save(
+              'users',
+              null,
+              userInput(`capacity-student-${index}@test.invalid`)
+            )
+            await updateUser(extraStudent.id, { studentSchoolId: schoolA.id })
+            await database.trainingEnrollment.create({
+              data: {
+                studentId: extraStudent.id,
+                drivingSchoolId: schoolA.id,
+                categoryId: category.id,
+                instructorId: instructor.id,
+                status
+              }
+            })
+          }
+
+          const preferredApplicant = await service.save(
+            'users',
+            null,
+            userInput('full-instructor-applicant@test.invalid')
+          )
+          const preferredApplication = await service.save('applications', null, {
+            ...applicationInput,
+            userId: preferredApplicant.id,
+            status: 'PENDING'
+          })
+          await assert.rejects(
+            service.save('applications', preferredApplication.id, {
+              ...applicationInput,
+              userId: preferredApplicant.id,
+              status: 'APPROVED'
+            }),
+            { statusCode: 409 }
+          )
+          assert.equal(
+            (await database.user.findUniqueOrThrow({ where: { id: preferredApplicant.id } }))
+              .drivingSchoolId,
+            null,
+            'A failed capacity check rolls back student enrollment'
+          )
+          assert.equal(
+            await database.trainingEnrollment.count({
+              where: { applicationId: preferredApplication.id }
+            }),
+            0
+          )
+
+          const randomApplicant = await service.save(
+            'users',
+            null,
+            userInput('random-instructor-applicant@test.invalid')
+          )
+          const randomApplication = await service.save('applications', null, {
+            ...applicationInput,
+            userId: randomApplicant.id,
+            preferredInstructorId: null,
+            status: 'PENDING'
+          })
+          await service.save('applications', randomApplication.id, {
+            ...applicationInput,
+            userId: randomApplicant.id,
+            preferredInstructorId: null,
+            status: 'APPROVED'
+          })
+          const randomTraining = await database.trainingEnrollment.findUniqueOrThrow({
+            where: { applicationId: randomApplication.id }
+          })
+          assert.equal(randomTraining.instructorId, secondInstructor.id)
+          assert.equal(randomTraining.vehicleId, null)
+        }
+      )
+      await t.test('curriculum lessons and completed lesson records track progress', async () => {
+        const lessons = await Promise.all([
+          database.curriculumLesson.create({
+            data: {
+              categoryId: category.id,
+              sequence: 1,
+              type: 'THEORY',
+              title: 'Road signs',
+              concept: 'Warning and regulatory signs',
+              goal: 'Recognize and respond to common road signs',
+              durationMinutes: 45
+            }
+          }),
+          database.curriculumLesson.create({
+            data: {
+              categoryId: category.id,
+              sequence: 2,
+              type: 'PRACTICAL',
+              title: 'Vehicle controls',
+              concept: 'Safe use of primary controls',
+              goal: 'Prepare and move the vehicle safely',
+              durationMinutes: 60
+            }
+          })
+        ])
+        const training = await database.trainingEnrollment.findUniqueOrThrow({
+          where: { applicationId: application.id }
+        })
+        const scheduledStart = new Date('2026-09-09T08:00:00Z')
+        const scheduledEnd = new Date('2026-09-09T08:45:00Z')
+        await database.lessonSession.create({
+          data: {
+            trainingEnrollmentId: training.id,
+            curriculumLessonId: lessons[0].id,
+            instructorId: training.instructorId,
+            vehicleId: training.vehicleId,
+            status: 'COMPLETED',
+            scheduledStart,
+            scheduledEnd,
+            startedAt: scheduledStart,
+            completedAt: scheduledEnd
+          }
+        })
+        assert.equal(
+          await database.lessonSession.count({
+            where: { trainingEnrollmentId: training.id, status: 'COMPLETED' }
+          }),
+          1
+        )
+        const nextLesson = await database.curriculumLesson.findFirst({
+          where: {
+            categoryId: category.id,
+            sessions: {
+              none: { trainingEnrollmentId: training.id, status: 'COMPLETED' }
+            }
+          },
+          orderBy: { sequence: 'asc' }
+        })
+        assert.equal(nextLesson?.id, lessons[1].id)
+      })
+      await t.test(
         'instructor transfer clears vehicle and preferred-instructor relationships',
         async () => {
           await service.assignMembership(instructor.id, {
@@ -358,6 +508,12 @@ test(
           assert.equal(
             (await database.application.findUniqueOrThrow({ where: { id: application.id } }))
               .preferredInstructorId,
+            null
+          )
+          assert.equal(
+            (await database.trainingEnrollment.findUniqueOrThrow({
+              where: { applicationId: application.id }
+            })).instructorId,
             null
           )
         }
@@ -376,6 +532,10 @@ test(
           )
           await service.remove('vehicles', vehicle.id)
           await service.remove('applications', application.id)
+          const preservedTraining = await database.trainingEnrollment.findFirstOrThrow({
+            where: { studentId: student.id, categoryId: category.id }
+          })
+          assert.equal(preservedTraining.applicationId, null)
           assert.equal(
             (await database.user.findUniqueOrThrow({ where: { id: student.id } })).drivingSchoolId,
             schoolA.id

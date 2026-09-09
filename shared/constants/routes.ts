@@ -15,6 +15,7 @@ export const schoolRoutes = {
 
 /** Routes that require an authenticated USER session. */
 export const userRoutes = {
+  dashboard: '/dashboard',
   profile: '/profile',
   startApplication: '/start-application'
 } as const

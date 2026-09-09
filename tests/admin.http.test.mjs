@@ -161,6 +161,12 @@ test(
             await request(path, method, method === 'GET' ? undefined : {}, 401, '')
             await request(path, method, method === 'GET' ? undefined : {}, 403, ordinaryCookie)
           }
+          await request('/api/dashboard', 'GET', undefined, 401, '')
+          await request('/api/dashboard', 'GET', undefined, 403, adminCookie)
+          assert.equal(
+            (await request('/api/dashboard', 'GET', undefined, 200, ordinaryCookie)).view,
+            'APPLICANT'
+          )
           const overview = await request('/api/admin/overview')
           assert.equal(overview.users.length, 2, 'Server must use the isolated schema')
           assert.equal(
@@ -292,6 +298,74 @@ test(
           (await database.vehicle.findUniqueOrThrow({ where: { id: vehicle.id } })).model,
           'Edited car'
         )
+      })
+      await t.test('student dashboard returns only the signed-in student training progress', async () => {
+        const firstLesson = await database.curriculumLesson.create({
+          data: {
+            categoryId: category.id,
+            sequence: 1,
+            type: 'THEORY',
+            title: 'Road signs',
+            concept: 'Regulatory and warning signs',
+            goal: 'Recognize common road signs',
+            durationMinutes: 45
+          }
+        })
+        const secondLesson = await database.curriculumLesson.create({
+          data: {
+            categoryId: category.id,
+            sequence: 2,
+            type: 'PRACTICAL',
+            title: 'Vehicle controls',
+            concept: 'Primary vehicle controls',
+            goal: 'Move the vehicle safely',
+            durationMinutes: 60
+          }
+        })
+        const training = await database.trainingEnrollment.findUniqueOrThrow({
+          where: { applicationId: application.id }
+        })
+        await database.lessonSession.createMany({
+          data: [
+            {
+              trainingEnrollmentId: training.id,
+              curriculumLessonId: firstLesson.id,
+              instructorId: instructor.id,
+              vehicleId: vehicle.id,
+              status: 'COMPLETED',
+              scheduledStart: new Date('2026-09-01T08:00:00Z'),
+              scheduledEnd: new Date('2026-09-01T08:45:00Z'),
+              startedAt: new Date('2026-09-01T08:00:00Z'),
+              completedAt: new Date('2026-09-01T08:45:00Z')
+            },
+            {
+              trainingEnrollmentId: training.id,
+              curriculumLessonId: secondLesson.id,
+              instructorId: instructor.id,
+              vehicleId: vehicle.id,
+              status: 'SCHEDULED',
+              scheduledStart: new Date('2099-09-10T09:00:00Z'),
+              scheduledEnd: new Date('2099-09-10T10:00:00Z')
+            }
+          ]
+        })
+        const studentCookie = await login('student@http.invalid')
+        const dashboard = await request(
+          '/api/dashboard',
+          'GET',
+          undefined,
+          200,
+          studentCookie
+        )
+        assert.equal(dashboard.view, 'STUDENT')
+        assert.equal(dashboard.trainings.length, 1)
+        assert.equal(dashboard.trainings[0].school.id, school.id)
+        assert.equal(dashboard.trainings[0].instructor.id, instructor.id)
+        assert.equal(dashboard.trainings[0].progress.completedLessons, 1)
+        assert.equal(dashboard.trainings[0].progress.requiredLessons, 50)
+        assert.equal(dashboard.trainings[0].nextLesson.id, secondLesson.id)
+        assert.equal(dashboard.trainings[0].lessons[0].completed, true)
+        assert.equal(dashboard.trainings[0].upcomingSession.status, 'SCHEDULED')
       })
       await t.test(
         'changing role replaces the old assignment and clears instructor links',

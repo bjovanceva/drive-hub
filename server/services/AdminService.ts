@@ -78,6 +78,10 @@ export class AdminService {
               where: { preferredInstructorId: id },
               data: { preferredInstructorId: null }
             })
+            await tx.trainingEnrollment.updateMany({
+              where: { instructorId: id },
+              data: { instructorId: null, vehicleId: null }
+            })
           }
           await tx.user.update({
             where: { id, role: 'USER' },

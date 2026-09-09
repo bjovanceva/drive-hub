@@ -8,6 +8,10 @@ export async function deleteAdminRecord(tx: Transaction, resource: string, id: n
       where: { preferredInstructorId: id },
       data: { preferredInstructorId: null }
     })
+    await tx.trainingEnrollment.updateMany({
+      where: { instructorId: id },
+      data: { instructorId: null, vehicleId: null }
+    })
     await tx.vehicle.updateMany({ where: { instructorId: id }, data: { instructorId: null } })
     await tx.drivingSchool.updateMany({ where: { managerId: id }, data: { managerId: null } })
     await tx.user.delete({ where: { id, role: 'USER' } })
@@ -20,6 +24,10 @@ export async function deleteAdminRecord(tx: Transaction, resource: string, id: n
     await tx.application.updateMany({
       where: { preferredInstructorId: { in: instructors.map((user) => user.id) } },
       data: { preferredInstructorId: null }
+    })
+    await tx.trainingEnrollment.updateMany({
+      where: { instructorId: { in: instructors.map((user) => user.id) } },
+      data: { instructorId: null, vehicleId: null }
     })
     await tx.vehicle.updateMany({
       where: { instructorId: { in: instructors.map((user) => user.id) } },

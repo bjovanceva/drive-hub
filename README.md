@@ -167,14 +167,62 @@ Open `/administration` as an administrator. Its three sections are:
   instructor assignments. A user can have only one school role at one school at a time.
 - **Applicants:** filter applications by person, school or status; create, edit,
   approve, reject, cancel or delete an application. Approval enrolls its user
-  at the selected school. A student at another school must be transferred in
-  Users first. Managers and instructors must change roles in Users before approval. Other status changes and application deletion preserve enrollment.
+  at the selected school and creates the student's training enrollment. A
+  preferred instructor is used when they have capacity; otherwise one eligible
+  school instructor is chosen randomly. Active and paused enrollments reserve a
+  place, and each instructor is limited to three distinct current students. A
+  student at another school must be transferred in Users first. Managers and
+  instructors must change roles in Users before approval. Rejecting or cancelling
+  an approved application cancels its training; deleting the application preserves
+  the training history.
 
 All admin reads and writes check the current database role. Mutations use
 serializable transactions. Changing an instructor's school clears their old
-vehicle assignments and preferred-instructor links. A manager cannot manage
-two schools. Changing a role in Users atomically removes the previous role; assignment shortcuts reject conflicting roles. Categories used by applications cannot be removed from a school
-until those applications are updated or deleted.
+vehicle assignments, preferred-instructor links and active training assignments.
+A manager cannot manage two schools. Changing a role in Users atomically removes
+the previous role; assignment shortcuts reject conflicting roles. Categories used
+by applications cannot be removed from a school until those applications are
+updated or deleted.
+
+## Training curriculum and progress
+
+The backend schema separates reusable curriculum from student progress:
+
+- `CurriculumLesson` defines an ordered theory or practical lesson for one
+  licence category, including its title, concept, goal and planned duration.
+  `(categoryId, sequence)` is unique.
+- `TrainingEnrollment` is the actual approved student/school/category assignment.
+  It stores the assigned instructor, an instructor-linked vehicle when one is
+  available, lifecycle status and dates. The source application is optional so
+  deleting administrative application data does not erase training history.
+- `LessonSession` records the scheduled start/end, actual start/completion,
+  status, notes, instructor and vehicle for one curriculum lesson attempt in one
+  enrollment. Multiple attempts are retained rather than overwriting history.
+
+Completed lesson count is the number of distinct lessons with a `COMPLETED`
+session. The next lesson is
+the lowest-sequence category lesson without a completed session for that
+enrollment. Keeping these values derived avoids stale progress counters. The
+schema and approval workflow are ready for presentation/API work; curriculum and
+training management screens are intentionally not included yet.
+
+## Unified dashboard
+
+Authenticated ordinary users can open `/dashboard`. The route resolves their
+current school role and provides the shared entry point for student, instructor,
+manager and applicant experiences. The student experience is implemented now:
+
+- all current and historical training programmes;
+- overall, theory and practical lesson progress;
+- assigned school, instructor and vehicle;
+- the next curriculum lesson and next scheduled booking;
+- an expandable lesson plan with completed and scheduled attempts; and
+- direct contact actions for the current driving school.
+
+The `/api/dashboard` response is scoped from the authenticated database identity,
+so a client cannot select another student's ID. Instructor and manager responses
+currently expose only their dashboard role; their detailed workspaces are reserved
+for the next implementation phase.
 
 Deletion dialogs explain the impact. Deleting a user removes their applications
 and clears manager/instructor references. Deleting a school removes its vehicles
@@ -182,11 +230,13 @@ and applications and unassigns its students and instructors, preserving the user
 accounts. These deletions are permanent.
 
 After schema changes, run `npm run db:generate` to refresh the generated Prisma
-client. Migration `20260904143000_ensure_application_instructor_relation` adds
-the nullable preferred-instructor column, foreign key and index if missing.
-It was applied to the current local database without resetting any data. This
-checkout has older local migration names that differ from migration history;
-reconcile those separately before deploying the entire history to that database.
+client. Migration `20260909120000_add_training_curriculum_and_progress` creates
+the curriculum, training and lesson-session structures and backfills existing
+approved applications. The earlier
+`20260904143000_ensure_application_instructor_relation` migration adds the
+nullable preferred-instructor column, foreign key and index if missing. The two
+historical authentication migrations retain the names recorded by existing
+databases and are ordered so the same history also works on a clean database.
 
 `npm run test:admin` runs integration tests against `DATABASE_URL` in a randomly
 named disposable schema, applying migrations there and removing it afterward.

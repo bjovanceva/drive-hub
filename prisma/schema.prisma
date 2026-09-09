@@ -24,90 +24,203 @@ enum ApplicationStatus {
   CANCELLED
 }
 
+enum LessonType {
+  THEORY
+  PRACTICAL
+}
+
+enum TrainingStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum LessonSessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
 model User {
-  id                 Int              @id @default(autoincrement())
-  name               String
-  email              String           @unique
-  password           String
-  role               UserRole         @default(USER)
-  
-  drivingSchoolId    Int?
-  studentIn          DrivingSchool?   @relation("StudentSchool", fields: [drivingSchoolId], references: [id])
+  id       Int      @id @default(autoincrement())
+  name     String
+  email    String   @unique
+  password String
+  role     UserRole @default(USER)
+
+  drivingSchoolId Int?
+  studentIn       DrivingSchool? @relation("StudentSchool", fields: [drivingSchoolId], references: [id])
 
   instructorSchoolId Int?
-  instructorIn       DrivingSchool?   @relation("InstructorSchool", fields: [instructorSchoolId], references: [id])
+  instructorIn       DrivingSchool? @relation("InstructorSchool", fields: [instructorSchoolId], references: [id])
 
-  managedSchool      DrivingSchool?   @relation("SchoolManager")
+  managedSchool DrivingSchool? @relation("SchoolManager")
 
-  vehicle            Vehicle[]
+  vehicle Vehicle[]
 
-  applications       Application[]
-  preferredApplications Application[] @relation("PreferredInstructorApplications")
+  applications          Application[]
+  preferredApplications Application[]        @relation("PreferredInstructorApplications")
+  trainingAsStudent     TrainingEnrollment[] @relation("TrainingStudent")
+  trainingAsInstructor  TrainingEnrollment[] @relation("TrainingInstructor")
+  taughtLessonSessions  LessonSession[]      @relation("LessonInstructor")
 }
 
 model DrivingSchool {
-  id           Int            @id @default(autoincrement())
-  name         String
-  email        String         @unique
-  description  String?
-  phone        String
-  address      String
-  city         String?
-  managerId    Int?           @unique
-  createdAt    DateTime
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String   @unique
+  description String?
+  phone       String
+  address     String
+  city        String?
+  managerId   Int?     @unique
+  createdAt   DateTime
 
-  students     User[]         @relation("StudentSchool")
-  instructors  User[]         @relation("InstructorSchool")
-  manager      User?          @relation("SchoolManager", fields: [managerId], references: [id], onDelete: SetNull)
-  categories   Category[]
-  applications Application[]
-  vehicles     Vehicle[]
+  students            User[]               @relation("StudentSchool")
+  instructors         User[]               @relation("InstructorSchool")
+  manager             User?                @relation("SchoolManager", fields: [managerId], references: [id], onDelete: SetNull)
+  categories          Category[]
+  applications        Application[]
+  vehicles            Vehicle[]
+  trainingEnrollments TrainingEnrollment[]
 }
 
 model Category {
-  id                 Int        @id @default(autoincrement())
-  code               String?    @unique
-  name               String     @unique
-  price              Decimal
-  theoryLessons      Int
-  practicalLessons   Int
-  minimumAge         Int
+  id               Int     @id @default(autoincrement())
+  code             String? @unique
+  name             String  @unique
+  price            Decimal
+  theoryLessons    Int
+  practicalLessons Int
+  minimumAge       Int
 
-  drivingSchools     DrivingSchool[]
-  applications       Application[]
+  drivingSchools      DrivingSchool[]
+  applications        Application[]
+  lessons             CurriculumLesson[]
+  trainingEnrollments TrainingEnrollment[]
 }
 
 model Vehicle {
-  id                Int           @id @default(autoincrement())
-  registration      String        @unique
-  brand             String
-  model             String
-  year              Int
+  id           Int    @id @default(autoincrement())
+  registration String @unique
+  brand        String
+  model        String
+  year         Int
 
-  drivingSchoolId   Int 
-  drivingSchool     DrivingSchool @relation(fields: [drivingSchoolId], references: [id])
+  drivingSchoolId Int
+  drivingSchool   DrivingSchool @relation(fields: [drivingSchoolId], references: [id])
 
-  instructorId      Int?         
-  instructor        User?         @relation(fields: [instructorId], references: [id])
+  instructorId Int?
+  instructor   User? @relation(fields: [instructorId], references: [id])
+
+  trainingEnrollments TrainingEnrollment[]
+  lessonSessions      LessonSession[]
 }
 
 model Application {
-  id              Int                @id @default(autoincrement())
-  status          ApplicationStatus  @default(PENDING)
-  startedAt       DateTime           @default(now())
+  id        Int               @id @default(autoincrement())
+  status    ApplicationStatus @default(PENDING)
+  startedAt DateTime          @default(now())
 
-  userId          Int
-  user            User               @relation(fields: [userId], references: [id])
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
 
   drivingSchoolId Int
-  drivingSchool   DrivingSchool      @relation(fields: [drivingSchoolId], references: [id])
+  drivingSchool   DrivingSchool @relation(fields: [drivingSchoolId], references: [id])
 
-  categoryId      Int
-  category        Category           @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
 
   preferredInstructorId Int?
-  preferredInstructor   User?          @relation("PreferredInstructorApplications", fields: [preferredInstructorId], references: [id], onDelete: SetNull)
+  preferredInstructor   User? @relation("PreferredInstructorApplications", fields: [preferredInstructorId], references: [id], onDelete: SetNull)
+
+  trainingEnrollment TrainingEnrollment?
 
   @@unique([userId, drivingSchoolId, categoryId])
   @@index([preferredInstructorId])
+}
+
+/// A stable lesson definition in the curriculum for one licence category.
+/// Progress is recorded separately so editing a student's history never edits the curriculum.
+model CurriculumLesson {
+  id              Int        @id @default(autoincrement())
+  categoryId      Int
+  category        Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  sequence        Int
+  type            LessonType
+  title           String
+  concept         String
+  goal            String
+  durationMinutes Int
+
+  sessions LessonSession[]
+
+  @@unique([categoryId, sequence])
+  @@index([categoryId, type])
+}
+
+/// The actual student/instructor assignment created when an application is approved.
+/// Completed lesson count and the next lesson are derived from its lesson sessions.
+model TrainingEnrollment {
+  id          Int            @id @default(autoincrement())
+  status      TrainingStatus @default(ACTIVE)
+  startedAt   DateTime       @default(now())
+  completedAt DateTime?
+
+  applicationId Int?         @unique
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  studentId Int
+  student   User @relation("TrainingStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  drivingSchoolId Int
+  drivingSchool   DrivingSchool @relation(fields: [drivingSchoolId], references: [id], onDelete: Cascade)
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  instructorId Int?
+  instructor   User? @relation("TrainingInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
+
+  vehicleId Int?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  lessonSessions LessonSession[]
+
+  @@index([studentId, status])
+  @@index([instructorId, status])
+  @@index([drivingSchoolId, status])
+  @@index([categoryId])
+  @@index([vehicleId])
+}
+
+/// One student's scheduled/completed occurrence of a curriculum lesson.
+model LessonSession {
+  id             Int                 @id @default(autoincrement())
+  status         LessonSessionStatus @default(SCHEDULED)
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  startedAt      DateTime?
+  completedAt    DateTime?
+  notes          String?
+
+  trainingEnrollmentId Int
+  trainingEnrollment   TrainingEnrollment @relation(fields: [trainingEnrollmentId], references: [id], onDelete: Cascade)
+
+  curriculumLessonId Int
+  curriculumLesson   CurriculumLesson @relation(fields: [curriculumLessonId], references: [id], onDelete: Restrict)
+
+  instructorId Int?
+  instructor   User? @relation("LessonInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
+
+  vehicleId Int?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([trainingEnrollmentId, status])
+  @@index([trainingEnrollmentId, curriculumLessonId])
+  @@index([curriculumLessonId])
+  @@index([instructorId])
+  @@index([vehicleId])
+  @@index([scheduledStart, scheduledEnd])
 }

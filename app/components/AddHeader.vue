@@ -61,6 +61,8 @@ watch(() => route.fullPath, closeMenu)
       <nav class="dh-header__navigation" aria-label="Primary navigation">
         <HeaderNavLink v-for="item in props.navigation" :key="item.label" :label="item.label" :to="item.to"
           @click="closeMenu" />
+        <HeaderNavLink v-if="loggedIn && !isAdmin" label="Dashboard" :to="userRoutes.dashboard"
+          @click="closeMenu" />
       </nav>
 
       <HeaderNavLink v-if="isAdmin" class="dh-header__admin" variant="admin" label="Administration"
@@ -301,15 +303,20 @@ watch(() => route.fullPath, closeMenu)
   }
 
   .dh-header__menu {
-    gap: 1.5rem;
+    gap: 1rem;
   }
 
   .dh-header__navigation {
-    gap: 1.125rem;
+    gap: 0.875rem;
+  }
+
+  .dh-header__account,
+  .dh-header__identity {
+    max-width: 9rem;
   }
 
   .dh-header__application {
-    width: 11.875rem;
+    width: 10.5rem;
   }
 }
 

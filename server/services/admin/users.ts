@@ -50,6 +50,10 @@ export async function saveUser(
       where: { preferredInstructorId: user.id },
       data: { preferredInstructorId: null }
     })
+    await tx.trainingEnrollment.updateMany({
+      where: { instructorId: user.id },
+      data: { instructorId: null, vehicleId: null }
+    })
   }
   if (data.managedSchoolId !== null)
     await tx.drivingSchool.update({

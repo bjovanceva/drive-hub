@@ -186,21 +186,60 @@ async function upsertVehicle(client, vehicle, schoolIds, userIds) {
 }
 
 async function upsertApplication(client, application, userIds, schoolIds, categoryIds) {
-  await client.query(
+  const instructorId = application.instructorEmail
+    ? userIds.get(application.instructorEmail)
+    : null
+  const result = await client.query(
     `INSERT INTO "Application"
-      ("status", "startedAt", "userId", "drivingSchoolId", "categoryId")
-     VALUES ($1::"ApplicationStatus", $2, $3, $4, $5)
+      ("status", "startedAt", "userId", "drivingSchoolId", "categoryId", "preferredInstructorId")
+     VALUES ($1::"ApplicationStatus", $2, $3, $4, $5, $6)
      ON CONFLICT ("userId", "drivingSchoolId", "categoryId") DO UPDATE SET
        "status" = EXCLUDED."status",
-       "startedAt" = EXCLUDED."startedAt"`,
+       "startedAt" = EXCLUDED."startedAt",
+       "preferredInstructorId" = EXCLUDED."preferredInstructorId"
+     RETURNING "id"`,
     [
       application.status,
       new Date(application.startedAt),
       userIds.get(application.userEmail),
       schoolIds.get(application.schoolKey),
-      categoryIds.get(application.categoryCode)
+      categoryIds.get(application.categoryCode),
+      instructorId
     ]
   )
+
+  if (application.status === 'APPROVED') {
+    const vehicle = instructorId
+      ? await client.query(
+          `SELECT "id" FROM "Vehicle"
+           WHERE "drivingSchoolId" = $1 AND "instructorId" = $2
+           ORDER BY "id" ASC LIMIT 1`,
+          [schoolIds.get(application.schoolKey), instructorId]
+        )
+      : { rows: [] }
+    await client.query(
+      `INSERT INTO "TrainingEnrollment"
+        ("applicationId", "studentId", "drivingSchoolId", "categoryId", "instructorId", "vehicleId", "startedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT ("applicationId") DO UPDATE SET
+         "studentId" = EXCLUDED."studentId",
+         "drivingSchoolId" = EXCLUDED."drivingSchoolId",
+         "categoryId" = EXCLUDED."categoryId",
+         "instructorId" = EXCLUDED."instructorId",
+         "vehicleId" = EXCLUDED."vehicleId",
+         "status" = 'ACTIVE',
+         "completedAt" = NULL`,
+      [
+        result.rows[0].id,
+        userIds.get(application.userEmail),
+        schoolIds.get(application.schoolKey),
+        categoryIds.get(application.categoryCode),
+        instructorId,
+        vehicle.rows[0]?.id ?? null,
+        new Date(application.startedAt)
+      ]
+    )
+  }
 }
 
 /** Seeds a complete, repeatable local dataset in one database transaction. */
@@ -257,7 +296,7 @@ async function seed() {
       { userEmail: 'applicant@drivehub.test', schoolKey: 'centar', categoryCode: 'B', status: 'PENDING', startedAt: '2026-08-25T10:00:00Z' },
       { userEmail: 'applicant@drivehub.test', schoolKey: 'vardar', categoryCode: 'C', status: 'REJECTED', startedAt: '2026-07-10T11:30:00Z' },
       { userEmail: 'applicant@drivehub.test', schoolKey: 'pelagonija', categoryCode: 'B', status: 'CANCELLED', startedAt: '2026-06-14T08:45:00Z' },
-      { userEmail: 'student@drivehub.test', schoolKey: 'centar', categoryCode: 'B', status: 'APPROVED', startedAt: '2026-05-05T09:15:00Z' }
+      { userEmail: 'student@drivehub.test', schoolKey: 'centar', categoryCode: 'B', status: 'APPROVED', startedAt: '2026-05-05T09:15:00Z', instructorEmail: 'instructor@drivehub.test' }
     ]
 
     for (const application of applications) {
