@@ -8,7 +8,7 @@ type DashboardUser = {
   managedSchoolId: number | null
 }
 
-/** Builds the role-aware dashboard payload. Only the student view is populated for now. */
+/** Builds the role-aware dashboard payload for students and instructors. */
 export class DashboardService {
   constructor(
     private database: PrismaClient = prisma,
@@ -17,9 +17,183 @@ export class DashboardService {
 
   async overview(user: DashboardUser) {
     if (user.studentSchoolId !== null) return this.studentOverview(user.id)
-    if (user.instructorSchoolId !== null) return { view: 'INSTRUCTOR' as const }
+    if (user.instructorSchoolId !== null) {
+      return this.instructorOverview(user.id, user.instructorSchoolId)
+    }
     if (user.managedSchoolId !== null) return { view: 'MANAGER' as const }
     return { view: 'APPLICANT' as const }
+  }
+
+  private dayKey(value: Date) {
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'Europe/Skopje'
+    }).format(value)
+  }
+
+  private async instructorOverview(instructorId: number, schoolId: number) {
+    const currentTime = this.now()
+    const currentTimestamp = currentTime.getTime()
+    const todayKey = this.dayKey(currentTime)
+    const [school, enrollments, lessonSessions, vehicles] = await Promise.all([
+      this.database.drivingSchool.findUniqueOrThrow({
+        where: { id: schoolId },
+        select: { id: true, name: true, city: true }
+      }),
+      this.database.trainingEnrollment.findMany({
+        where: { instructorId },
+        orderBy: [{ status: 'asc' }, { startedAt: 'desc' }],
+        include: {
+          student: { select: { id: true, name: true, email: true } },
+          category: { include: { lessons: { orderBy: { sequence: 'asc' } } } },
+          vehicle: {
+            select: { id: true, registration: true, brand: true, model: true }
+          },
+          lessonSessions: {
+            orderBy: { scheduledStart: 'asc' },
+            select: {
+              id: true,
+              curriculumLessonId: true,
+              status: true,
+              scheduledStart: true,
+              scheduledEnd: true
+            }
+          }
+        }
+      }),
+      this.database.lessonSession.findMany({
+        where: {
+          scheduledEnd: { gte: new Date(currentTimestamp - 24 * 60 * 60 * 1000) },
+          OR: [
+            { instructorId },
+            { instructorId: null, trainingEnrollment: { instructorId } }
+          ]
+        },
+        orderBy: { scheduledStart: 'asc' },
+        include: {
+          trainingEnrollment: {
+            select: {
+              student: { select: { id: true, name: true, email: true } },
+              category: { select: { id: true, code: true, name: true } }
+            }
+          },
+          curriculumLesson: {
+            select: {
+              id: true,
+              sequence: true,
+              type: true,
+              title: true,
+              goal: true,
+              durationMinutes: true
+            }
+          },
+          vehicle: {
+            select: { id: true, registration: true, brand: true, model: true }
+          }
+        }
+      }),
+      this.database.vehicle.findMany({
+        where: { instructorId, drivingSchoolId: schoolId },
+        orderBy: [{ brand: 'asc' }, { model: 'asc' }],
+        select: { id: true, registration: true, brand: true, model: true, year: true }
+      })
+    ])
+
+    const students = enrollments.map((enrollment) => {
+      const completedLessonIds = new Set(
+        enrollment.lessonSessions
+          .filter((session) => session.status === 'COMPLETED')
+          .map((session) => session.curriculumLessonId)
+      )
+      const requiredLessons =
+        enrollment.category.theoryLessons + enrollment.category.practicalLessons
+      const nextLesson = enrollment.category.lessons.find(
+        (lesson) => !completedLessonIds.has(lesson.id)
+      )
+      const upcomingSession = enrollment.lessonSessions.find(
+        (session) =>
+          session.status === 'SCHEDULED' && session.scheduledEnd.getTime() >= currentTimestamp
+      )
+
+      return {
+        trainingId: enrollment.id,
+        status: enrollment.status,
+        startedAt: enrollment.startedAt,
+        student: enrollment.student,
+        category: {
+          id: enrollment.category.id,
+          code: enrollment.category.code,
+          name: enrollment.category.name
+        },
+        vehicle: enrollment.vehicle,
+        progress: {
+          completedLessons: completedLessonIds.size,
+          requiredLessons,
+          percentage:
+            requiredLessons === 0
+              ? 0
+              : Math.min(100, Math.round((completedLessonIds.size / requiredLessons) * 100))
+        },
+        nextLesson: nextLesson
+          ? {
+              id: nextLesson.id,
+              sequence: nextLesson.sequence,
+              type: nextLesson.type,
+              title: nextLesson.title
+            }
+          : null,
+        upcomingSessionAt: upcomingSession?.scheduledStart ?? null
+      }
+    })
+    const relevantSchedule = lessonSessions
+      .filter(
+        (session) =>
+          session.status !== 'CANCELLED' &&
+          (this.dayKey(session.scheduledStart) === todayKey ||
+            (session.status === 'SCHEDULED' && session.scheduledEnd.getTime() >= currentTimestamp))
+      )
+    const schedule = relevantSchedule
+      .slice(0, 24)
+      .map((session) => ({
+        id: session.id,
+        status: session.status,
+        scheduledStart: session.scheduledStart,
+        scheduledEnd: session.scheduledEnd,
+        startedAt: session.startedAt,
+        completedAt: session.completedAt,
+        notes: session.notes,
+        student: session.trainingEnrollment.student,
+        category: session.trainingEnrollment.category,
+        lesson: session.curriculumLesson,
+        vehicle: session.vehicle
+      }))
+
+    return {
+      view: 'INSTRUCTOR' as const,
+      school,
+      summary: {
+        lessonsToday: relevantSchedule.filter(
+          (session) => this.dayKey(session.scheduledStart) === todayKey
+        ).length,
+        upcomingLessons: relevantSchedule.filter(
+          (session) =>
+            session.status === 'SCHEDULED' &&
+            new Date(session.scheduledEnd).getTime() >= currentTimestamp
+        ).length,
+        activeStudents: students.filter(
+          (student) => student.status === 'ACTIVE' || student.status === 'PAUSED'
+        ).length,
+        completedLessons: students.reduce(
+          (total, student) => total + student.progress.completedLessons,
+          0
+        )
+      },
+      schedule,
+      students,
+      vehicles
+    }
   }
 
   private async studentOverview(studentId: number) {

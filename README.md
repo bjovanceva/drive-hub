@@ -29,11 +29,12 @@ refresh the complete development dataset with:
 npm run db:seed
 ```
 
-The seed is transactional and idempotent. It populates every current domain
-table: 17 licence categories, five development schools and their category
+The seed is transactional and idempotent. It populates 17 licence categories,
+442 ordered curriculum lessons, five development schools and their category
 connections, five role/context users, six vehicles, and sample applications in
-each status. It updates records identified by their stable email, code,
-registration, or application composite key instead of duplicating them.
+each status. It updates records identified by their stable category/sequence,
+email, code, registration, or application composite key instead of duplicating
+them.
 
 All development accounts use `SEED_DEFAULT_PASSWORD`, or `DriveHub123!` when
 the variable is omitted:
@@ -198,6 +199,22 @@ The backend schema separates reusable curriculum from student progress:
 - `LessonSession` records the scheduled start/end, actual start/completion,
   status, notes, instructor and vehicle for one curriculum lesson attempt in one
   enrollment. Multiple attempts are retained rather than overwriting history.
+
+The development seed publishes a complete lesson plan for all 17 categories.
+Every curriculum row is one 45-minute teaching hour, and the generated theory
+and practical counts exactly match the corresponding values stored on the
+category. Repeated topics are labelled `(1/n)`, `(2/n)`, and so on. Category B,
+for example, progresses from controls through proving-ground reversing,
+turning, parking, uphill starts and precision stopping before urban, rural,
+high-speed and independent road driving. Motorcycle, trailer, goods, passenger,
+tractor, mobile-machinery and tram categories have their own safety checks,
+manoeuvres and operating context.
+
+The catalogue is realistic development data informed by the North Macedonian
+exam structure and common European category competencies; it is not a claim of
+regulatory accreditation. Update `prisma/curriculum.mjs` if a school needs to
+mirror an approved local teaching plan. Run `npm run test:curriculum` to verify
+coverage, counts and ordering without connecting to PostgreSQL.
 
 Completed lesson count is the number of distinct lessons with a `COMPLETED`
 session. The next lesson is
