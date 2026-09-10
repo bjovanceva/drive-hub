@@ -111,6 +111,91 @@ export interface InstructorVehicle {
   year: number
 }
 
+export interface ManagerApplication {
+  id: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  startedAt: string
+  userId: number
+  drivingSchoolId: number
+  categoryId: number
+  preferredInstructorId: number | null
+  user: { id: number; name: string; email: string }
+  category: { id: number; code: string | null; name: string }
+  preferredInstructor: { id: number; name: string } | null
+  trainingEnrollment: { id: number; instructorId: number | null } | null
+}
+
+export interface ManagerInstructor {
+  id: number
+  name: string
+  email: string
+  activeStudents: number
+  vehicle: Array<{ id: number; registration: string; brand: string; model: string }>
+}
+
+export interface ManagerTraining {
+  id: number
+  status: TrainingStatus
+  student: { id: number; name: string; email: string }
+  category: {
+    id: number
+    code: string | null
+    name: string
+    lessons: Array<{
+      id: number
+      sequence: number
+      type: LessonType
+      title: string
+      durationMinutes: number
+    }>
+  }
+  instructor: { id: number; name: string } | null
+  vehicle: { id: number; registration: string; brand: string; model: string } | null
+}
+
+export interface ManagerLessonItem {
+  id: number
+  status: LessonSessionStatus
+  scheduledStart: string
+  scheduledEnd: string
+  startedAt: string | null
+  completedAt: string | null
+  notes: string | null
+  student: { id: number; name: string; email: string }
+  category: { id: number; code: string | null; name: string }
+  lesson: {
+    id: number
+    sequence: number
+    type: LessonType
+    title: string
+    durationMinutes: number
+  }
+  instructor: { id: number; name: string } | null
+  vehicle: { id: number; registration: string; brand: string; model: string } | null
+}
+
+export interface ManagerStudent {
+  id: number
+  name: string
+  email: string
+  trainingAsStudent: Array<{
+    id: number
+    status: TrainingStatus
+    category: { id: number; code: string | null; name: string }
+    instructor: { id: number; name: string } | null
+    vehicle: { id: number; registration: string; brand: string; model: string } | null
+  }>
+}
+
+export interface ManagerVehicle {
+  id: number
+  registration: string
+  brand: string
+  model: string
+  year: number
+  instructorId: number | null
+}
+
 export type DashboardResponse =
   | {
       view: 'STUDENT'
@@ -134,4 +219,20 @@ export type DashboardResponse =
       students: InstructorStudent[]
       vehicles: InstructorVehicle[]
     }
-  | { view: Exclude<DashboardView, 'STUDENT' | 'INSTRUCTOR'> }
+  | {
+      view: 'MANAGER'
+      school: { id: number; name: string; city: string | null; email: string; phone: string }
+      summary: {
+        pendingApplications: number
+        instructors: number
+        activeStudents: number
+        vehicles: number
+      }
+      applications: ManagerApplication[]
+      instructors: ManagerInstructor[]
+      students: ManagerStudent[]
+      trainings: ManagerTraining[]
+      lessons: ManagerLessonItem[]
+      vehicles: ManagerVehicle[]
+    }
+  | { view: 'APPLICANT' }

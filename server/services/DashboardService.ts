@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../../app/generated/prisma/client.ts'
 import prisma from '../utils/prisma.ts'
+import { ManagerService } from './ManagerService.ts'
 
 type DashboardUser = {
   id: number
@@ -8,7 +9,7 @@ type DashboardUser = {
   managedSchoolId: number | null
 }
 
-/** Builds the role-aware dashboard payload for students and instructors. */
+/** Builds the role-aware dashboard payload for students, instructors and managers. */
 export class DashboardService {
   constructor(
     private database: PrismaClient = prisma,
@@ -20,7 +21,9 @@ export class DashboardService {
     if (user.instructorSchoolId !== null) {
       return this.instructorOverview(user.id, user.instructorSchoolId)
     }
-    if (user.managedSchoolId !== null) return { view: 'MANAGER' as const }
+    if (user.managedSchoolId !== null) {
+      return new ManagerService(this.database).overview(user.managedSchoolId)
+    }
     return { view: 'APPLICANT' as const }
   }
 
@@ -66,10 +69,7 @@ export class DashboardService {
       this.database.lessonSession.findMany({
         where: {
           scheduledEnd: { gte: new Date(currentTimestamp - 24 * 60 * 60 * 1000) },
-          OR: [
-            { instructorId },
-            { instructorId: null, trainingEnrollment: { instructorId } }
-          ]
+          instructorId
         },
         orderBy: { scheduledStart: 'asc' },
         include: {

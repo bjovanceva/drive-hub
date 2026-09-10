@@ -1,5 +1,4 @@
 import { DrivingSchoolService } from '../../services/DrivingSchoolService'
-import { restrictManagerToSchool } from '../../utils/authorization'
 
 /** GET /api/driving-schools/:id returns one school with its categories. */
 export default defineEventHandler(async (event) => {
@@ -11,8 +10,6 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Invalid ID'
     })
   }
-
-  await restrictManagerToSchool(event, id)
 
   const service = new DrivingSchoolService()
 

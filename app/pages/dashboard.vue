@@ -14,8 +14,10 @@ const { user } = useUserSession()
 const { data, error, status, refresh } = await useFetch<DashboardResponse>('/api/dashboard')
 const userName = computed(() => user.value?.name || 'driver')
 const isInstructor = computed(() => user.value?.instructorSchoolId != null)
+const isManager = computed(() => user.value?.managedSchoolId != null)
 const studentDashboard = computed(() => (data.value?.view === 'STUDENT' ? data.value : null))
 const instructorDashboard = computed(() => (data.value?.view === 'INSTRUCTOR' ? data.value : null))
+const managerDashboard = computed(() => (data.value?.view === 'MANAGER' ? data.value : null))
 const hasCurrentTraining = computed(() =>
   studentDashboard.value?.trainings.some(
     (training) => training.status === 'ACTIVE' || training.status === 'PAUSED'
@@ -123,11 +125,14 @@ function latestSession(lesson: DashboardLesson) {
       <div class="dh-dashboard__shell dh-dashboard__hero-inner">
         <div>
           <p class="dh-dashboard__eyebrow">
-            {{ isInstructor ? 'Drive Hub / Instructor workspace' : 'Drive Hub / Dashboard' }}
+            {{ isManager ? 'Drive Hub / School operations' : isInstructor ? 'Drive Hub / Instructor workspace' : 'Drive Hub / Dashboard' }}
           </p>
-          <h1>{{ isInstructor ? 'Today’s roadbook' : 'Your road ahead' }}</h1>
+          <h1>{{ isManager ? 'Keep the school moving' : isInstructor ? 'Today’s roadbook' : 'Your road ahead' }}</h1>
           <p class="dh-dashboard__intro">
-            <template v-if="isInstructor">
+            <template v-if="isManager">
+              Welcome back, {{ userName }}. Review applicants, build your instructor team and schedule every lesson.
+            </template>
+            <template v-else-if="isInstructor">
               Welcome back, {{ userName }}. Your lessons, students and teaching progress are lined up below.
             </template>
             <template v-else>
@@ -153,6 +158,8 @@ function latestSession(lesson: DashboardLesson) {
         <span aria-hidden="true" />
         Loading your training…
       </section>
+
+      <ManagerDashboard v-else-if="managerDashboard" :dashboard="managerDashboard" @refresh="refresh()" />
 
       <template v-else-if="instructorDashboard">
         <section class="dh-dashboard__summary dh-dashboard__summary--instructor" aria-label="Instructor summary">
@@ -459,7 +466,7 @@ function latestSession(lesson: DashboardLesson) {
                 <p>Next booking</p>
                 <template v-if="training.upcomingSession">
                   <strong>{{ formatDateTime(training.upcomingSession.scheduledStart) }}</strong>
-                  <span>{{ training.upcomingSession.instructor?.name || training.instructor?.name || 'Instructor pending' }}</span>
+                  <span>{{ training.upcomingSession.instructor?.name || (training.lessons.find(lesson => lesson.id === training.upcomingSession?.curriculumLessonId)?.type === 'THEORY' ? 'No instructor required' : 'Instructor pending') }}</span>
                 </template>
                 <template v-else>
                   <strong>Not scheduled</strong>
@@ -503,7 +510,6 @@ function latestSession(lesson: DashboardLesson) {
           <p class="dh-dashboard__empty-kicker">Ready when you are</p>
           <h2 id="no-training-title">No training programme yet</h2>
           <p>Once a school approves your application, your instructor, lessons and progress will appear here.</p>
-          <NuxtLink :to="userRoutes.startApplication">Start an application →</NuxtLink>
         </section>
 
         <aside v-if="hasCurrentTraining" class="dh-dashboard__support">
@@ -521,13 +527,10 @@ function latestSession(lesson: DashboardLesson) {
       <section v-else-if="data" class="dh-dashboard__empty" aria-labelledby="future-dashboard-title">
         <p class="dh-dashboard__empty-kicker">Dashboard foundation ready</p>
         <h2 id="future-dashboard-title">
-          {{ data.view === 'INSTRUCTOR' ? 'Instructor tools are next' : data.view === 'MANAGER' ? 'Manager tools are next' : 'Your training starts after approval' }}
+          {{ 'Your training starts after approval' }}
         </h2>
         <p v-if="data.view === 'APPLICANT'">
           Apply to a driving school now. Your lessons and progress will appear here after approval.
-        </p>
-        <p v-else>
-          This unified dashboard recognizes your role. Its dedicated workspace will be added in the next phase.
         </p>
         <NuxtLink v-if="data.view === 'APPLICANT'" :to="userRoutes.startApplication">Start an application →</NuxtLink>
       </section>

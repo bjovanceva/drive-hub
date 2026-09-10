@@ -29,8 +29,9 @@ const isMenuOpen = ref(false)
 const { loggedIn, user, logout, mutationStatus } = useAuth()
 const isAdmin = computed(() => user.value?.role === 'ADMIN')
 const canStartApplication = computed(() =>
-  !loggedIn.value || (
+  loggedIn.value && (
     user.value?.role === 'USER' &&
+    user.value.studentSchoolId === null &&
     user.value.instructorSchoolId === null &&
     user.value.managedSchoolId === null
   )

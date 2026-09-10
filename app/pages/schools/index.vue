@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { schoolRoutes } from '#shared/constants/routes'
 import type { SchoolSearchPresentationDto, SelectOptionPresentationDto } from '~/types/presentation/home'
 import { toSchoolDirectoryItem } from '~/utils/drivingSchoolPresentation'
 
@@ -13,7 +12,6 @@ useSeoMeta({
 type SortOption = 'recommended' | 'rating' | 'price'
 
 const route = useRoute()
-const { user } = useUserSession()
 
 const {
   locationOptions: backendLocations,
@@ -124,8 +122,6 @@ function retryFetch() {
           </div>
 
           <div class="dh-schools-page__results-actions">
-            <NuxtLink v-if="user?.role === 'ADMIN'" class="dh-schools-page__cta" :to="schoolRoutes.create">Add a school →</NuxtLink>
-
             <label class="dh-schools-page__sort">
               <span>Sort results</span>
               <span class="dh-schools-page__sort-control">
@@ -203,8 +199,6 @@ function retryFetch() {
 .dh-schools-page__results-header h2 { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(2.25rem, 4vw, 3.5rem); line-height: 1; text-transform: uppercase; }
 .dh-schools-page__results-header > div > p:last-child { margin-top: 0.75rem; color: var(--dh-color-text-secondary); font-size: 0.875rem; }
 .dh-schools-page__results-actions { display: flex; align-items: flex-end; gap: 1rem; }
-.dh-schools-page__cta { display: inline-flex; min-height: 3rem; padding: 0.75rem 1rem; align-items: center; border: 1px solid var(--dh-color-border-strong); background: var(--dh-color-bg-status); color: var(--dh-color-text-primary); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04rem; text-decoration: none; text-transform: uppercase; }
-
 .dh-schools-page__sort { display: flex; width: 15rem; flex: 0 0 15rem; flex-direction: column; gap: 0.5rem; font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06rem; text-transform: uppercase; }
 .dh-schools-page__sort-control { position: relative; display: block; }
 .dh-schools-page__sort select { width: 100%; height: 3rem; padding: 0 3rem 0 0.875rem; border: 1px solid var(--dh-color-border-strong); border-radius: 0; appearance: none; background: var(--dh-color-bg-surface); font-size: 0.875rem; font-weight: 600; text-transform: uppercase; cursor: pointer; }

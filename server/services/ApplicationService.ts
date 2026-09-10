@@ -16,6 +16,13 @@ export class ApplicationService {
       })
     }
 
+    if (await this.repository.hasSchoolMembership(userId)) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Users who already belong to a driving school cannot submit applications'
+      })
+    }
+
     if (parsedInstructorId !== null && !await this.repository.instructorBelongsToSchool(parsedInstructorId, parsedSchoolId)) {
       throw createError({
         statusCode: 400,
@@ -30,11 +37,16 @@ export class ApplicationService {
       })
     }
 
-    if (await this.repository.findDuplicate(userId, parsedSchoolId, parsedCategoryId)) {
+    const existingApplication = await this.repository.findDuplicate(userId, parsedSchoolId, parsedCategoryId)
+    if (existingApplication?.status === 'PENDING' || existingApplication?.status === 'APPROVED') {
       throw createError({
         statusCode: 409,
         statusMessage: 'You have already applied to this school for this category'
       })
+    }
+
+    if (existingApplication) {
+      return this.repository.restart(existingApplication.id, parsedInstructorId)
     }
 
     try {

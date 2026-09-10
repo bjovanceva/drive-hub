@@ -6,6 +6,15 @@ definePageMeta({ layout: 'default' })
 const route = useRoute()
 const schoolId = computed(() => Number(route.params.id))
 const isSchoolDetailRoute = computed(() => route.path === schoolRoutes.detail(schoolId.value))
+const { loggedIn, user } = useUserSession()
+const canStartApplication = computed(() =>
+  loggedIn.value && (
+    user.value?.role === 'USER' &&
+    user.value.studentSchoolId === null &&
+    user.value.instructorSchoolId === null &&
+    user.value.managedSchoolId === null
+  )
+)
 
 const { data: school, status: schoolStatus, error: schoolError } = await useFetch<any>(`/api/driving-schools/${schoolId.value}`)
 const { data: vehicles } = await useFetch<any[]>(`/api/driving-schools/${schoolId.value}/vehicles`)
@@ -32,7 +41,7 @@ function formatAddress(raw: string | null | undefined) {
 
         <div class="dh-school-detail-page__actions">
           <NuxtLink class="dh-school-detail-page__secondary" :to="schoolRoutes.list">← Back to schools</NuxtLink>
-          <NuxtLink class="dh-school-detail-page__primary" :to="`/start-application?schoolId=${schoolId}`">Start application</NuxtLink>
+          <NuxtLink v-if="canStartApplication" class="dh-school-detail-page__primary" :to="`/start-application?schoolId=${schoolId}`">Start application</NuxtLink>
         </div>
       </div>
     </section>
