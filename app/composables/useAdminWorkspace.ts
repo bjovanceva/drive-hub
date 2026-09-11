@@ -12,6 +12,13 @@ import { describeAdminDeletion } from '~/utils/admin/presentation'
 
 export async function useAdminWorkspace() {
   const request = await useFetch<AdminOverview>('/api/admin/overview')
+  // Dynamic admin resource paths make Nuxt's generated route matcher recursively
+  // compare every API route in the project. Keep the payload types above, but use
+  // a deliberately narrow transport signature for these runtime-built URLs.
+  const adminMutationFetch = $fetch as unknown as (
+    request: string,
+    options: { method: 'POST' | 'PATCH' | 'DELETE'; body?: unknown }
+  ) => Promise<unknown>
   const editor = ref<AdminEditorState | null>(null)
   const deletion = ref<AdminDeleteRequest | null>(null)
   const busy = ref(false)
@@ -63,8 +70,8 @@ export async function useAdminWorkspace() {
     await mutate(
       () =>
         target.id === null
-          ? $fetch(`/api/admin/${target.resource}`, { method: 'POST', body })
-          : $fetch(`/api/admin/${target.resource}/${target.id}`, { method: 'PATCH', body }),
+          ? adminMutationFetch(`/api/admin/${target.resource}`, { method: 'POST', body })
+          : adminMutationFetch(`/api/admin/${target.resource}/${target.id}`, { method: 'PATCH', body }),
       'Changes saved.'
     )
   }
@@ -72,14 +79,14 @@ export async function useAdminWorkspace() {
     const target = deletion.value
     if (!target) return
     await mutate(
-      () => $fetch(`/api/admin/${target.resource}/${target.id}`, { method: 'DELETE' }),
+      () => adminMutationFetch(`/api/admin/${target.resource}/${target.id}`, { method: 'DELETE' }),
       `${target.name} deleted.`
     )
   }
   async function assign(kind: SchoolMembership, userId: number, schoolId: number) {
     await mutate(
       () =>
-        $fetch(`/api/admin/users/${userId}/membership`, {
+        adminMutationFetch(`/api/admin/users/${userId}/membership`, {
           method: 'PATCH',
           body: { kind, schoolId }
         }),
