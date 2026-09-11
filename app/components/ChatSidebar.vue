@@ -15,11 +15,14 @@ interface ChatUser {
 const props = defineProps<{
   activeConversationId?: string
 }>()
+const { status: realtimeStatus, revision, lastMessage } = useChatRealtime()
 
 const { data: conversations, error: conversationsError, refresh } =
   await useFetch<ConversationSummary[]>('/api/conversations')
 const { data: users, error: usersError } =
   await useFetch<ChatUser[]>('/api/users/selection')
+
+watch([revision, lastMessage], () => { void refresh() })
 
 const mode = ref<'PRIVATE' | 'GROUP'>('PRIVATE')
 const selectedUserId = ref<number | null>(null)
@@ -74,6 +77,7 @@ async function startConversation() {
     <div class="chat-sidebar__heading">
       <p class="chat-sidebar__eyebrow">Drive Hub</p>
       <h1>Chats</h1>
+      <p role="status">{{ realtimeStatus === 'connected' ? 'Live' : realtimeStatus === 'connecting' ? 'Connecting...' : 'Offline — reconnecting when available' }}</p>
     </div>
 
     <section class="chat-sidebar__new" aria-labelledby="new-chat-title">

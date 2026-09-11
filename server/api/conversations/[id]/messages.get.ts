@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
 
   const conversationId = Number(getRouterParam(event, 'id'))
 
-  if (!conversationId) {
+  if (!Number.isSafeInteger(conversationId) || conversationId <= 0) {
     throw createError({
       statusCode: 400
     })
@@ -27,14 +27,12 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  return prisma.message.findMany({
+  const messages = await prisma.message.findMany({
     where: {
       conversationId
     },
 
-    orderBy: {
-      createdAt: 'asc'
-    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
 
     take: 50,
 
@@ -47,4 +45,5 @@ export default defineEventHandler(async (event) => {
       }
     }
   })
+  return messages.reverse()
 })

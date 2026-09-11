@@ -246,6 +246,27 @@ to create schemas. `npm run test:accounts` runs the existing account checks.
 
 ## Development Server
 
+### Real-time messaging
+
+Messages are saved through the authenticated HTTP API and then delivered over
+`/ws/chat` to connected conversation participants. The connection uses the existing
+session cookie, checks the request origin and database role, and rechecks current
+membership before delivery. No client-supplied user ID or room subscription is trusted.
+The client reconnects with backoff, reloads the latest 50 messages on reconnect,
+deduplicates message IDs, and refreshes conversation previews. Older-history
+pagination is not implemented yet.
+
+Restart the dev server after enabling Nitro's experimental WebSocket option.
+For a manual check, sign into two ordinary accounts in separate browser profiles,
+open the same conversation and send messages in both directions. Verify the Live
+indicator, sidebar previews, and recovery after temporarily disconnecting a browser.
+Run `npm run test:chat` (Node 22.13+) for the isolated delivery and client-merge tests.
+
+Deploy with `nuxt build` to a WebSocket-capable server, forwarding WebSocket upgrades
+and preserving the public request origin through any reverse proxy. This implementation
+uses an in-memory connection registry for one Nitro process. Multiple processes or
+replicas require a shared pub/sub service such as Redis; static hosting is insufficient.
+
 Start the development server on `http://localhost:3000`:
 
 ```bash

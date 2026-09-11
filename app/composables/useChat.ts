@@ -17,6 +17,21 @@ export function useChat(conversationId: MaybeRef<string>) {
   const error = ref('')
   const requestFetch = useRequestFetch()
   let loadVersion = 0
+  const { lastMessage, revision } = useChatRealtime()
+
+  function mergeMessages(incoming: ChatMessage[]) {
+    const unique = new Map(messages.value.map(message => [message.id, message]))
+    for (const message of incoming) unique.set(message.id, message)
+    messages.value = [...unique.values()].sort((a, b) =>
+      Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id - b.id)
+  }
+
+  watch(lastMessage, message => {
+    if (message && String(message.conversationId) === toValue(conversationId)) {
+      mergeMessages([message])
+    }
+  })
+  watch(revision, () => { void loadMessages() })
 
   async function loadMessages() {
     const version = ++loadVersion
@@ -28,7 +43,7 @@ export function useChat(conversationId: MaybeRef<string>) {
       const result = await requestFetch<ChatMessage[]>(
         `/api/conversations/${toValue(conversationId)}/messages`
       )
-      if (version === loadVersion) messages.value = result
+      if (version === loadVersion) mergeMessages(result)
     } catch {
       if (version === loadVersion) error.value = 'Unable to load messages. Please try again.'
     } finally {
@@ -48,7 +63,7 @@ export function useChat(conversationId: MaybeRef<string>) {
       }
     )
 
-    if (targetId === toValue(conversationId)) messages.value.push(message)
+    if (targetId === toValue(conversationId)) mergeMessages([message])
 
     return message
   }

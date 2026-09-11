@@ -69,7 +69,7 @@ async function submit() {
 
       <p v-if="sendError" role="alert">{{ sendError }}</p>
       <form class="chat-composer" @submit.prevent="submit">
-        <input v-model="text" placeholder="Write a message..." aria-label="Message" >
+        <input v-model="text" placeholder="Write a message..." aria-label="Message" maxlength="10000" >
         <button type="submit" :disabled="sending || loading || Boolean(error) || !text.trim()">{{ sending ? 'Sending...' : 'Send' }}</button>
       </form>
     </section>

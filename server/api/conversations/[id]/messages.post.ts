@@ -1,4 +1,5 @@
 import { requireOrdinaryUser } from '../../../utils/authorization'
+import { broadcastChatMessage } from '../../../utils/chatRealtime'
 
 export default defineEventHandler(async (event) => {
   const user = await requireOrdinaryUser(event)
@@ -9,18 +10,18 @@ export default defineEventHandler(async (event) => {
     content: string
   }>(event)
 
-  if (!conversationId) {
+  if (!Number.isSafeInteger(conversationId) || conversationId <= 0) {
     throw createError({
       statusCode: 400
     })
   }
 
-  const content = body.content?.trim()
+  const content = typeof body?.content === 'string' ? body.content.trim() : ''
 
-  if (!content) {
+  if (!content || content.length > 10000) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Message cannot be empty'
+      statusMessage: 'Message must contain between 1 and 10000 characters'
     })
   }
 
@@ -40,22 +41,32 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const message = await prisma.message.create({
-    data: {
-      conversationId,
-      senderId: user.id,
-      content
-    },
-
-    include: {
-      sender: {
-        select: {
-          id: true,
-          name: true
+  const message = await prisma.$transaction(async (tx) => {
+    const saved = await tx.message.create({
+      data: {
+        conversationId,
+        senderId: user.id,
+        content
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       }
-    }
+    })
+    await tx.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } })
+    return saved
   })
+
+  // A delivery failure must not turn a committed send into a retry/duplicate.
+  try {
+    await broadcastChatMessage(message)
+  } catch (error) {
+    console.error('Chat realtime delivery failed', error)
+  }
 
   return message
 })
