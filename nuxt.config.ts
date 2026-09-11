@@ -2,6 +2,9 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   modules: ['nuxt-auth-utils'],
+  nitro: {
+    experimental: { websocket: true }
+  },
   future: {
     compatibilityVersion: 4
   },

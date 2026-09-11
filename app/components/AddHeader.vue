@@ -71,6 +71,8 @@ watch(() => route.fullPath, closeMenu)
           @click="closeMenu" />
         <HeaderNavLink v-if="loggedIn && !isAdmin" label="Dashboard" :to="userRoutes.dashboard"
           @click="closeMenu" />
+        <HeaderNavLink v-if="loggedIn && !isAdmin" label="Messages" to="/messages"
+          @click="closeMenu" />
       </nav>
 
       <HeaderNavLink v-if="isAdmin" class="dh-header__admin" variant="admin" label="Administration"
