@@ -11,7 +11,7 @@ import type {
 type ManagerDashboardData = Extract<DashboardResponse, { view: 'MANAGER' }>
 type Candidate = { id: number; name: string; email: string }
 type StudentTraining = ManagerStudent['trainingAsStudent'][number]
-type TrainingDraft = { status: TrainingStatus; instructorId: number | null; vehicleId: number | null }
+type ManagerTab = 'admissions' | 'students' | 'drivers' | 'vehicles' | 'lessons'
 
 const props = defineProps<{ dashboard: ManagerDashboardData }>()
 const emit = defineEmits<{ refresh: [] }>()
@@ -30,8 +30,10 @@ const lessonCategoryFilter = ref('all')
 const lessonStatusFilter = ref('all')
 const rescheduleLessonId = ref<number | null>(null)
 const editingVehicleId = ref<number | null>(null)
+const editingStudentId = ref<number | null>(null)
+const editingTrainingId = ref<number | null>(null)
+const activeTab = ref<ManagerTab>('students')
 const currentTime = ref(Date.now())
-const trainingDrafts = reactive<Record<number, TrainingDraft>>({})
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let completionClock: ReturnType<typeof setInterval> | undefined
 
@@ -44,6 +46,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (searchTimer) clearTimeout(searchTimer)
   if (completionClock) clearInterval(completionClock)
+  window.removeEventListener('keydown', handleEscape)
 })
 
 const scheduleForm = reactive({
@@ -68,27 +71,22 @@ const vehicleForm = reactive({
   year: new Date().getFullYear(),
   instructorId: null as number | null
 })
-
-watch(() => props.dashboard.students, (students) => {
-  const currentTrainingIds = new Set<number>()
-  for (const student of students) {
-    for (const training of student.trainingAsStudent) {
-      currentTrainingIds.add(training.id)
-      trainingDrafts[training.id] = {
-        status: training.status,
-        instructorId: training.instructor?.id ?? null,
-        vehicleId: training.vehicle?.id ?? null
-      }
-    }
-  }
-  for (const trainingId of Object.keys(trainingDrafts).map(Number)) {
-    if (!currentTrainingIds.has(trainingId)) delete trainingDrafts[trainingId]
-  }
-}, { immediate: true, deep: true })
+const trainingForm = reactive({
+  status: 'ACTIVE' as TrainingStatus,
+  instructorId: null as number | null,
+  vehicleId: null as number | null
+})
 
 const pendingApplications = computed(() =>
   props.dashboard.applications.filter((application) => application.status === 'PENDING')
 )
+const managerTabs = computed(() => [
+  { id: 'admissions' as const, label: 'Admissions', count: pendingApplications.value.length },
+  { id: 'students' as const, label: 'Students', count: props.dashboard.students.length },
+  { id: 'drivers' as const, label: 'Drivers', count: props.dashboard.instructors.length },
+  { id: 'vehicles' as const, label: 'Vehicles', count: props.dashboard.vehicles.length },
+  { id: 'lessons' as const, label: 'Lessons', count: props.dashboard.lessons.length }
+])
 const decidedApplications = computed(() =>
   props.dashboard.applications.filter((application) => application.status !== 'PENDING').slice(0, 8)
 )
@@ -140,41 +138,49 @@ const rescheduleVehicles = computed(() =>
     vehicle.instructorId === null || vehicle.instructorId === rescheduleForm.instructorId
   )
 )
-
-function trainingDraft(training: StudentTraining) {
-  return trainingDrafts[training.id] ?? {
-    status: training.status,
-    instructorId: training.instructor?.id ?? null,
-    vehicleId: training.vehicle?.id ?? null
-  }
-}
-
-function trainingVehicles(training: StudentTraining) {
-  const instructorId = trainingDraft(training).instructorId
-  return props.dashboard.vehicles.filter(vehicle =>
-    vehicle.instructorId === null || vehicle.instructorId === instructorId
+const editingStudent = computed(() =>
+  props.dashboard.students.find(student => student.id === editingStudentId.value) ?? null
+)
+const editingTraining = computed(() =>
+  editingStudent.value?.trainingAsStudent.find(training => training.id === editingTrainingId.value) ?? null
+)
+const trainingVehicleOptions = computed(() =>
+  props.dashboard.vehicles.filter(vehicle =>
+    vehicle.instructorId === null || vehicle.instructorId === trainingForm.instructorId
   )
+)
+
+function selectTab(tab: ManagerTab) {
+  activeTab.value = tab
+  closeTrainingEditor()
+  cancelReschedule()
 }
 
-function trainingInstructorChanged(training: StudentTraining) {
-  const draft = trainingDraft(training)
-  if (draft.vehicleId && !trainingVehicles(training).some(vehicle => vehicle.id === draft.vehicleId)) {
-    draft.vehicleId = null
+function openTrainingEditor(student: ManagerStudent, training: StudentTraining) {
+  editingStudentId.value = student.id
+  editingTrainingId.value = training.id
+  trainingForm.status = training.status
+  trainingForm.instructorId = training.instructor?.id ?? null
+  trainingForm.vehicleId = training.vehicle?.id ?? null
+}
+
+function closeTrainingEditor() {
+  if (busyKey.value.startsWith('training-')) return
+  editingStudentId.value = null
+  editingTrainingId.value = null
+}
+
+function trainingInstructorChanged() {
+  if (trainingForm.vehicleId && !trainingVehicleOptions.value.some(vehicle => vehicle.id === trainingForm.vehicleId)) {
+    trainingForm.vehicleId = null
   }
 }
 
-function setTrainingStatus(training: StudentTraining, value: string) {
-  trainingDraft(training).status = value as TrainingStatus
+function handleEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape' && editingTrainingId.value) closeTrainingEditor()
 }
 
-function setTrainingInstructor(training: StudentTraining, value: string) {
-  trainingDraft(training).instructorId = Number(value) || null
-  trainingInstructorChanged(training)
-}
-
-function setTrainingVehicle(training: StudentTraining, value: string) {
-  trainingDraft(training).vehicleId = Number(value) || null
-}
+onMounted(() => window.addEventListener('keydown', handleEscape))
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
   weekday: 'short',
@@ -274,18 +280,21 @@ function removeInstructor(instructorId: number, name: string) {
   )
 }
 
-function saveTraining(training: StudentTraining, studentName: string) {
-  const draft = trainingDraft(training)
-  return runAction(`training-${training.id}`, `${studentName}’s programme was updated.`, () =>
+async function saveTraining() {
+  const training = editingTraining.value
+  const student = editingStudent.value
+  if (!training || !student) return
+  await runAction(`training-${training.id}`, `${student.name}’s programme was updated.`, () =>
     $fetch(`/api/manager/trainings/${training.id}`, {
       method: 'PATCH',
       body: {
-        status: draft.status,
-        instructorId: draft.instructorId,
-        vehicleId: draft.vehicleId
+        status: trainingForm.status,
+        instructorId: trainingForm.instructorId,
+        vehicleId: trainingForm.vehicleId
       }
     })
   )
+  if (!actionError.value) closeTrainingEditor()
 }
 
 function removeStudent(student: ManagerStudent) {
@@ -469,11 +478,29 @@ async function submitReschedule(session: ManagerLessonItem) {
       <article><span>Vehicles</span><strong>{{ dashboard.summary.vehicles }}</strong><small>In the school fleet</small></article>
     </section>
 
-    <div v-if="actionError || actionMessage" class="dh-manager__notice" :class="{ 'is-error': actionError }" role="status">
-      {{ actionError || actionMessage }}
-    </div>
+    <AppToast
+      :message="actionError || actionMessage"
+      :tone="actionError ? 'error' : 'success'"
+      @close="actionError = ''; actionMessage = ''"
+    />
 
-    <section class="dh-manager__section" aria-labelledby="manager-applications-title">
+    <nav class="dh-manager__tabs" aria-label="Manager dashboard sections" role="tablist">
+      <button
+        v-for="tab in managerTabs"
+        :id="`manager-tab-${tab.id}`"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        :aria-controls="`manager-panel-${tab.id}`"
+        :aria-selected="activeTab === tab.id"
+        :class="{ 'is-active': activeTab === tab.id }"
+        @click="selectTab(tab.id)"
+      >
+        <span>{{ tab.label }}</span><strong>{{ tab.count }}</strong>
+      </button>
+    </nav>
+
+    <section v-if="activeTab === 'admissions'" id="manager-panel-admissions" class="dh-manager__section dh-manager__tab-panel" role="tabpanel" aria-labelledby="manager-tab-admissions">
       <header class="dh-manager__heading">
         <div><p>Admissions</p><h2 id="manager-applications-title">Application queue</h2></div>
         <span>{{ pendingApplications.length }} pending</span>
@@ -514,7 +541,7 @@ async function submitReschedule(session: ManagerLessonItem) {
       </details>
     </section>
 
-    <section class="dh-manager__section" aria-labelledby="manager-students-title">
+    <section v-if="activeTab === 'students'" id="manager-panel-students" class="dh-manager__section dh-manager__tab-panel" role="tabpanel" aria-labelledby="manager-tab-students">
       <header class="dh-manager__heading">
         <div><p>Students</p><h2 id="manager-students-title">School roster</h2></div>
         <span>{{ dashboard.students.length }} students</span>
@@ -531,32 +558,17 @@ async function submitReschedule(session: ManagerLessonItem) {
             </button>
           </header>
           <div v-if="student.trainingAsStudent.length" class="dh-manager__student-trainings">
-            <form v-for="training in student.trainingAsStudent" :key="training.id" @submit.prevent="saveTraining(training, student.name)">
-              <strong>{{ training.category.code || training.category.name }} · {{ training.category.name }}</strong>
-              <label>Status
-                <select :value="trainingDraft(training).status" @change="setTrainingStatus(training, ($event.target as HTMLSelectElement).value)">
-                  <option value="ACTIVE">Active</option>
-                  <option value="PAUSED">Paused</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="CANCELLED">Cancelled</option>
-                </select>
-              </label>
-              <label>Instructor
-                <select :value="trainingDraft(training).instructorId ?? ''" @change="setTrainingInstructor(training, ($event.target as HTMLSelectElement).value)">
-                  <option value="">Unassigned</option>
-                  <option v-for="instructor in dashboard.instructors" :key="instructor.id" :value="instructor.id">{{ instructor.name }}</option>
-                </select>
-              </label>
-              <label>Vehicle
-                <select :value="trainingDraft(training).vehicleId ?? ''" @change="setTrainingVehicle(training, ($event.target as HTMLSelectElement).value)">
-                  <option value="">Unassigned</option>
-                  <option v-for="vehicle in trainingVehicles(training)" :key="vehicle.id" :value="vehicle.id">{{ vehicle.registration }} · {{ vehicle.brand }} {{ vehicle.model }}</option>
-                </select>
-              </label>
-              <button type="submit" class="is-primary" :disabled="!!busyKey">
-                {{ busyKey === `training-${training.id}` ? 'Saving…' : 'Save programme' }}
-              </button>
-            </form>
+            <article v-for="training in student.trainingAsStudent" :key="training.id">
+              <div class="dh-manager__programme-name">
+                <strong>{{ training.category.code || training.category.name }} · {{ training.category.name }}</strong>
+                <span :class="`is-${training.status.toLowerCase()}`">{{ training.status.toLowerCase() }}</span>
+              </div>
+              <dl>
+                <div><dt>Instructor</dt><dd>{{ training.instructor?.name || 'Unassigned' }}</dd></div>
+                <div><dt>Assigned vehicle</dt><dd>{{ training.vehicle ? `${training.vehicle.registration} · ${training.vehicle.brand} ${training.vehicle.model}` : 'Unassigned' }}</dd></div>
+              </dl>
+              <button type="button" class="is-primary" :disabled="!!busyKey" @click="openTrainingEditor(student, training)">Edit programme</button>
+            </article>
           </div>
           <p v-else class="dh-manager__hint">No training programme is attached to this student.</p>
         </article>
@@ -564,7 +576,7 @@ async function submitReschedule(session: ManagerLessonItem) {
       <div v-else class="dh-manager__empty">Approved applicants will appear here as students.</div>
     </section>
 
-    <section class="dh-manager__section" aria-labelledby="manager-vehicles-title">
+    <section v-if="activeTab === 'vehicles'" id="manager-panel-vehicles" class="dh-manager__section dh-manager__tab-panel" role="tabpanel" aria-labelledby="manager-tab-vehicles">
       <header class="dh-manager__heading">
         <div><p>Fleet</p><h2 id="manager-vehicles-title">Vehicle management</h2></div>
         <span>{{ dashboard.vehicles.length }} vehicles</span>
@@ -595,7 +607,10 @@ async function submitReschedule(session: ManagerLessonItem) {
         <div v-if="dashboard.vehicles.length" class="dh-manager__vehicles">
           <article v-for="vehicle in dashboard.vehicles" :key="vehicle.id">
             <div><strong>{{ vehicle.registration }}</strong><span>{{ vehicle.brand }} {{ vehicle.model }} · {{ vehicle.year }}</span></div>
-            <span>{{ dashboard.instructors.find(instructor => instructor.id === vehicle.instructorId)?.name || 'Instructor unassigned' }}</span>
+            <div class="dh-manager__vehicle-assignment">
+              <small>{{ vehicle.instructorId ? 'Assigned driver' : 'Availability' }}</small>
+              <span :class="{ 'is-unassigned': !vehicle.instructorId }">{{ dashboard.instructors.find(instructor => instructor.id === vehicle.instructorId)?.name || 'Unassigned · available to all drivers' }}</span>
+            </div>
             <div class="dh-manager__vehicle-actions">
               <button type="button" :disabled="!!busyKey" @click="editVehicle(vehicle)">Edit</button>
               <button type="button" class="is-danger" :disabled="!!busyKey" @click="removeVehicle(vehicle)">
@@ -608,7 +623,7 @@ async function submitReschedule(session: ManagerLessonItem) {
       </div>
     </section>
 
-    <div class="dh-manager__columns">
+    <div v-if="activeTab === 'drivers'" id="manager-panel-drivers" class="dh-manager__driver-workspace dh-manager__tab-panel" role="tabpanel" aria-labelledby="manager-tab-drivers">
       <section class="dh-manager__section" aria-labelledby="manager-instructors-title">
         <header class="dh-manager__heading">
           <div><p>People</p><h2 id="manager-instructors-title">Instructor roster</h2></div>
@@ -635,7 +650,9 @@ async function submitReschedule(session: ManagerLessonItem) {
         </div>
         <div v-else class="dh-manager__empty">Search above to add the school’s first instructor.</div>
       </section>
+    </div>
 
+    <div v-if="activeTab === 'lessons'" id="manager-panel-lessons" class="dh-manager__lesson-workspace dh-manager__tab-panel" role="tabpanel" aria-labelledby="manager-tab-lessons">
       <section class="dh-manager__section" aria-labelledby="manager-schedule-title">
         <header class="dh-manager__heading">
           <div><p>Planning</p><h2 id="manager-schedule-title">Schedule a lesson</h2></div>
@@ -670,7 +687,6 @@ async function submitReschedule(session: ManagerLessonItem) {
           <button type="submit" class="is-primary" :disabled="!!busyKey || !activeTrainings.length">{{ busyKey === 'schedule' ? 'Scheduling…' : 'Schedule lesson' }}</button>
         </form>
       </section>
-    </div>
 
     <section class="dh-manager__section" aria-labelledby="manager-lessons-title">
       <header class="dh-manager__heading">
@@ -711,7 +727,7 @@ async function submitReschedule(session: ManagerLessonItem) {
         </label>
       </div>
 
-      <div v-if="visibleLessons.length" class="dh-manager__lessons">
+      <div v-if="visibleLessons.length" class="dh-manager__lessons" role="region" aria-label="Lesson results" tabindex="0">
         <article v-for="session in visibleLessons" :key="session.id" :class="`is-${session.status.toLowerCase()}`">
           <div class="dh-manager__lesson-row">
             <time :datetime="session.scheduledStart">
@@ -763,6 +779,49 @@ async function submitReschedule(session: ManagerLessonItem) {
       </div>
       <div v-else class="dh-manager__empty">No lessons match these filters.</div>
     </section>
+    </div>
+
+    <Teleport to="body">
+      <div v-if="editingTraining && editingStudent" class="dh-manager dh-manager__modal-backdrop" @click.self="closeTrainingEditor">
+        <section class="dh-manager__modal" role="dialog" aria-modal="true" aria-labelledby="manager-programme-editor-title">
+          <header>
+            <div>
+              <p>Student programme</p>
+              <h2 id="manager-programme-editor-title">Edit {{ editingStudent.name }}</h2>
+            </div>
+            <button type="button" aria-label="Close programme editor" :disabled="busyKey.startsWith('training-')" @click="closeTrainingEditor">×</button>
+          </header>
+          <form @submit.prevent="saveTraining">
+            <p class="dh-manager__modal-programme">{{ editingTraining.category.code || editingTraining.category.name }} · {{ editingTraining.category.name }}</p>
+            <label>Status
+              <select v-model="trainingForm.status">
+                <option value="ACTIVE">Active</option>
+                <option value="PAUSED">Paused</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </label>
+            <label>Assigned instructor
+              <select v-model="trainingForm.instructorId" @change="trainingInstructorChanged">
+                <option :value="null">Unassigned</option>
+                <option v-for="instructor in dashboard.instructors" :key="instructor.id" :value="instructor.id">{{ instructor.name }}</option>
+              </select>
+            </label>
+            <label>Assigned vehicle
+              <select v-model="trainingForm.vehicleId">
+                <option :value="null">Unassigned</option>
+                <option v-for="vehicle in trainingVehicleOptions" :key="vehicle.id" :value="vehicle.id">{{ vehicle.registration }} · {{ vehicle.brand }} {{ vehicle.model }}</option>
+              </select>
+            </label>
+            <p class="dh-manager__hint">Vehicles assigned to another driver are excluded. Unassigned fleet vehicles remain available.</p>
+            <div class="dh-manager__actions">
+              <button type="submit" class="is-primary" :disabled="!!busyKey">{{ busyKey === `training-${editingTraining.id}` ? 'Saving…' : 'Save programme' }}</button>
+              <button type="button" :disabled="!!busyKey" @click="closeTrainingEditor">Cancel</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -774,9 +833,16 @@ async function submitReschedule(session: ManagerLessonItem) {
 .dh-manager__summary span, .dh-manager__heading p, .dh-manager label, .dh-manager dt { color: var(--dh-color-text-secondary); font-size: .68rem; font-weight: 800; letter-spacing: .055rem; text-transform: uppercase; }
 .dh-manager__summary strong { font-family: 'Barlow Condensed', sans-serif; font-size: 3rem; line-height: 1; }
 .dh-manager__summary small { color: var(--dh-color-text-secondary); }
-.dh-manager__notice { margin-top: 1.5rem; padding: .9rem 1rem; border-left: .3rem solid #477900; background: #eff9df; color: #284800; }
-.dh-manager__notice.is-error { border-color: #c93827; background: #fff0ed; color: #8f2619; }
+.dh-manager__tabs { display: grid; margin-top: 2rem; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--dh-color-border-strong); background: #fff; }
+.dh-manager__tabs button { display: flex; min-height: 4rem; padding: .8rem 1rem; align-items: center; justify-content: space-between; gap: .75rem; border: 0; border-right: 1px solid var(--dh-color-border-default); background: #fff; }
+.dh-manager__tabs button:last-child { border-right: 0; }
+.dh-manager__tabs button span { font-size: .72rem; letter-spacing: .04rem; }
+.dh-manager__tabs button strong { display: grid; width: 1.8rem; height: 1.8rem; place-items: center; background: #eef0eb; font-size: .75rem; }
+.dh-manager__tabs button.is-active { background: var(--dh-color-bg-inverse); color: var(--dh-color-text-inverse); }
+.dh-manager__tabs button.is-active strong { background: var(--dh-color-bg-status); color: var(--dh-color-text-primary); }
+.dh-manager__tabs button:focus-visible { position: relative; z-index: 1; outline: 3px solid var(--dh-color-bg-status); outline-offset: -3px; }
 .dh-manager__section { margin-top: 3.5rem; }
+.dh-manager__tab-panel > .dh-manager__section:first-child { margin-top: 3.5rem; }
 .dh-manager__heading { display: flex; margin-bottom: 1.25rem; align-items: end; justify-content: space-between; gap: 1rem; }
 .dh-manager__heading p { margin: 0; color: var(--dh-color-bg-accent); }
 .dh-manager__heading h2 { margin: .25rem 0 0; font-family: 'Barlow Condensed', sans-serif; font-size: clamp(2.25rem, 4vw, 3.5rem); line-height: 1; text-transform: uppercase; }
@@ -807,9 +873,13 @@ async function submitReschedule(session: ManagerLessonItem) {
 .dh-manager__student-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .dh-manager__student-identity { display: flex; min-width: 0; flex-direction: column; gap: .25rem; }
 .dh-manager__student-trainings { display: grid; margin-top: 1rem; gap: .75rem; }
-.dh-manager__student-trainings form { display: grid; padding: .85rem; grid-template-columns: minmax(10rem, 1.2fr) repeat(3, minmax(9rem, 1fr)) auto; align-items: end; gap: .65rem; border: 1px solid var(--dh-color-border-default); background: #f7f8f7; }
-.dh-manager__student-trainings form > strong { align-self: center; font-size: .82rem; }
-.dh-manager__columns { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(22rem, .92fr); gap: 2rem; }
+.dh-manager__student-trainings > article { display: grid; padding: .9rem; grid-template-columns: minmax(13rem, 1fr) minmax(20rem, 1.6fr) auto; align-items: center; gap: 1rem; border: 1px solid var(--dh-color-border-default); background: #f7f8f7; }
+.dh-manager__programme-name { display: flex; min-width: 0; flex-direction: column; gap: .45rem; }
+.dh-manager__programme-name > strong { font-size: .82rem; }
+.dh-manager__programme-name > span { width: fit-content; padding: .25rem .4rem; border: 1px solid var(--dh-color-border-default); color: var(--dh-color-text-secondary); font-size: .62rem; font-weight: 900; text-transform: uppercase; }
+.dh-manager__programme-name > span.is-active { border-color: #8fbd47; color: #477900; }
+.dh-manager__student-trainings dl { display: grid; margin: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dh-manager__student-trainings dd { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dh-manager__search small { display: block; margin-top: .6rem; color: var(--dh-color-text-secondary); }
 .dh-manager__results { margin-top: .75rem; border: 1px solid var(--dh-color-border-default); }
 .dh-manager__results article { display: flex; padding: .75rem; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--dh-color-border-default); }
@@ -824,18 +894,22 @@ async function submitReschedule(session: ManagerLessonItem) {
 .dh-manager__form { display: grid; gap: .9rem; }
 .dh-manager__vehicle-layout { display: grid; grid-template-columns: minmax(20rem, .72fr) minmax(0, 1.28fr); gap: 1rem; align-items: start; }
 .dh-manager__vehicle-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: .65rem; }
-.dh-manager__vehicles { border: 1px solid var(--dh-color-border-strong); background: #fff; }
+.dh-manager__vehicles { max-height: 31rem; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border: 1px solid var(--dh-color-border-strong); background: #fff; }
 .dh-manager__vehicles article { display: grid; min-height: 4.75rem; padding: 1rem; grid-template-columns: minmax(11rem, 1fr) minmax(10rem, 1fr) auto; align-items: center; gap: 1rem; border-bottom: 1px solid var(--dh-color-border-default); }
 .dh-manager__vehicles article:last-child { border-bottom: 0; }
 .dh-manager__vehicles article > div:first-child { display: flex; min-width: 0; flex-direction: column; gap: .25rem; }
 .dh-manager__vehicles article span { color: var(--dh-color-text-secondary); font-size: .75rem; }
+.dh-manager__vehicle-assignment { display: flex; min-width: 0; flex-direction: column; gap: .25rem; }
+.dh-manager__vehicle-assignment small { color: var(--dh-color-text-secondary); font-size: .62rem; font-weight: 800; letter-spacing: .04rem; text-transform: uppercase; }
+.dh-manager__vehicle-assignment span.is-unassigned { color: #477900; }
 .dh-manager__vehicle-actions { display: flex; gap: .45rem; }
 .dh-manager__vehicle-actions button { min-height: 2.35rem; padding: .5rem .65rem; font-size: .68rem; }
 .dh-manager__check { display: flex !important; min-height: 2rem; flex-direction: row !important; align-items: center; }
 .dh-manager__check input { width: 1rem; min-height: 1rem; }
 .dh-manager__hint { margin: -.35rem 0 0; color: var(--dh-color-text-secondary); font-size: .75rem; line-height: 1.45; }
 .dh-manager__lesson-filters { display: grid; margin-bottom: 1rem; padding: 1rem; grid-template-columns: minmax(14rem, 1.4fr) repeat(4, minmax(9rem, 1fr)); gap: .75rem; border: 1px solid var(--dh-color-border-strong); background: #fff; }
-.dh-manager__lessons { display: grid; gap: .75rem; }
+.dh-manager__lessons { display: grid; max-height: min(42rem, 68vh); padding-right: .45rem; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; gap: .75rem; }
+.dh-manager__lessons:focus-visible { outline: 3px solid var(--dh-color-bg-status); outline-offset: 3px; }
 .dh-manager__lessons > article { border: 1px solid var(--dh-color-border-strong); border-left-width: .35rem; background: #fff; }
 .dh-manager__lessons > article.is-completed { border-left-color: #6aa113; }
 .dh-manager__lessons > article.is-cancelled { border-left-color: #c93827; opacity: .78; }
@@ -853,7 +927,16 @@ async function submitReschedule(session: ManagerLessonItem) {
 .dh-manager__reschedule { display: grid; padding: 1rem; grid-template-columns: minmax(12rem, 1fr) minmax(10rem, .8fr) minmax(10rem, 1fr) minmax(10rem, 1fr); align-items: end; gap: .75rem; border-top: 1px solid var(--dh-color-border-default); background: #f4f5f1; }
 .dh-manager__reschedule-actions { display: flex; grid-column: 1 / -1; gap: .6rem; }
 .dh-manager__empty { padding: 2rem; border: 1px dashed var(--dh-color-border-strong); background: #fff; color: var(--dh-color-text-secondary); text-align: center; }
-@media (max-width: 78rem) { .dh-manager__student-trainings form { grid-template-columns: repeat(2, minmax(10rem, 1fr)); }.dh-manager__lesson-filters { grid-template-columns: repeat(3, 1fr); }.dh-manager__lesson-row { grid-template-columns: 10rem minmax(10rem, .8fr) minmax(14rem, 1.4fr); }.dh-manager__lesson-actions, .dh-manager__lesson-finished { grid-column: 2 / -1; justify-content: flex-start; text-align: left; } }
-@media (max-width: 70rem) { .dh-manager__columns, .dh-manager__applications, .dh-manager__vehicle-layout { grid-template-columns: 1fr; }.dh-manager__summary { grid-template-columns: repeat(2, 1fr); }.dh-manager__reschedule { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 44rem) { .dh-manager__summary, .dh-manager__lesson-filters, .dh-manager__student-trainings form, .dh-manager__vehicle-fields { grid-template-columns: 1fr; }.dh-manager__summary article { min-height: 7rem; border-right: 0; border-bottom: 1px solid var(--dh-color-border-default); }.dh-manager__roster article, .dh-manager__vehicles article, .dh-manager__lesson-row, .dh-manager__reschedule { grid-template-columns: 1fr; }.dh-manager__student-header { align-items: flex-start; flex-direction: column; }.dh-manager__lesson-actions, .dh-manager__lesson-finished, .dh-manager__reschedule-actions { grid-column: auto; }.dh-manager dl { grid-template-columns: 1fr; }.dh-manager__history p { grid-template-columns: 1fr; gap: .25rem; }.dh-manager__columns { display: block; }.dh-manager__applications > article, .dh-manager__search, .dh-manager__form { padding: 1rem; }.dh-manager__lesson-actions, .dh-manager__reschedule-actions, .dh-manager__vehicle-actions { flex-wrap: wrap; } }
+.dh-manager__modal-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; padding: 1.25rem; place-items: center; overflow-y: auto; background: #101510b8; }
+.dh-manager__modal { width: min(34rem, 100%); border: 1px solid var(--dh-color-border-strong); background: #fff; box-shadow: .75rem .75rem 0 #10151040; }
+.dh-manager__modal > header { display: flex; padding: 1.25rem 1.5rem; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--dh-color-border-default); background: var(--dh-color-bg-inverse); color: var(--dh-color-text-inverse); }
+.dh-manager__modal > header p { margin: 0; color: var(--dh-color-bg-status); font-size: .65rem; font-weight: 800; letter-spacing: .055rem; text-transform: uppercase; }
+.dh-manager__modal > header h2 { margin: .25rem 0 0; font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; line-height: 1; text-transform: uppercase; }
+.dh-manager__modal > header button { min-width: 2.75rem; padding: .4rem; border-color: #ffffff55; background: transparent; color: #fff; font-size: 1.5rem; line-height: 1; }
+.dh-manager__modal form { display: grid; padding: 1.5rem; gap: 1rem; }
+.dh-manager__modal-programme { margin: 0; padding-bottom: 1rem; border-bottom: 1px solid var(--dh-color-border-default); font-weight: 800; }
+.dh-manager__modal .dh-manager__actions { margin-top: .25rem; }
+@media (max-width: 78rem) { .dh-manager__student-trainings > article { grid-template-columns: minmax(12rem, .8fr) minmax(18rem, 1.2fr); }.dh-manager__student-trainings > article > button { grid-column: 1 / -1; width: fit-content; }.dh-manager__lesson-filters { grid-template-columns: repeat(3, 1fr); }.dh-manager__lesson-row { grid-template-columns: 10rem minmax(10rem, .8fr) minmax(14rem, 1.4fr); }.dh-manager__lesson-actions, .dh-manager__lesson-finished { grid-column: 2 / -1; justify-content: flex-start; text-align: left; } }
+@media (max-width: 70rem) { .dh-manager__applications, .dh-manager__vehicle-layout { grid-template-columns: 1fr; }.dh-manager__summary { grid-template-columns: repeat(2, 1fr); }.dh-manager__tabs { grid-template-columns: repeat(3, 1fr); }.dh-manager__tabs button { border-bottom: 1px solid var(--dh-color-border-default); }.dh-manager__reschedule { grid-template-columns: repeat(2, 1fr); }.dh-manager__vehicles { max-height: 26rem; } }
+@media (max-width: 44rem) { .dh-manager__summary, .dh-manager__lesson-filters, .dh-manager__student-trainings > article, .dh-manager__student-trainings dl, .dh-manager__vehicle-fields { grid-template-columns: 1fr; }.dh-manager__tabs { display: flex; overflow-x: auto; scrollbar-width: thin; }.dh-manager__tabs button { min-width: 8.5rem; flex: 1 0 auto; }.dh-manager__summary article { min-height: 7rem; border-right: 0; border-bottom: 1px solid var(--dh-color-border-default); }.dh-manager__roster article, .dh-manager__vehicles article, .dh-manager__lesson-row, .dh-manager__reschedule { grid-template-columns: 1fr; }.dh-manager__student-header { align-items: flex-start; flex-direction: column; }.dh-manager__student-trainings > article > button { grid-column: auto; width: 100%; }.dh-manager__lesson-actions, .dh-manager__lesson-finished, .dh-manager__reschedule-actions { grid-column: auto; }.dh-manager dl { grid-template-columns: 1fr; }.dh-manager__history p { grid-template-columns: 1fr; gap: .25rem; }.dh-manager__applications > article, .dh-manager__search, .dh-manager__form { padding: 1rem; }.dh-manager__lesson-actions, .dh-manager__reschedule-actions, .dh-manager__vehicle-actions { flex-wrap: wrap; }.dh-manager__modal-backdrop { padding: .75rem; place-items: start center; }.dh-manager__modal form, .dh-manager__modal > header { padding: 1rem; } }
 </style>

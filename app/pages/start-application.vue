@@ -53,6 +53,7 @@ const selectedInstructorId = ref<number | null>(null)
 const instructorOptions = ref<InstructorOption[]>([])
 const instructorsStatus = ref<'idle' | 'pending'>('idle')
 const formError = ref('')
+const applicationMessage = ref('')
 const isSubmitting = ref(false)
 const createdApplication = ref<CreatedApplication | null>(null)
 
@@ -102,6 +103,7 @@ watch(selectedSchoolId, async (schoolId, previousSchoolId, onCleanup) => {
 
 async function submitApplication() {
   formError.value = ''
+  applicationMessage.value = ''
 
   if (!selectedSchoolId.value || !selectedCategoryId.value) {
     formError.value = 'Choose a driving school and category before continuing.'
@@ -119,6 +121,7 @@ async function submitApplication() {
         preferredInstructorId: selectedInstructorId.value
       }
     })
+    applicationMessage.value = 'Your application was submitted successfully.'
   } catch (error: unknown) {
     formError.value = (error as any)?.data?.statusMessage
       ?? (error as any)?.data?.message
@@ -138,6 +141,11 @@ async function signOut() {
 
 <template>
   <div class="dh-application-page">
+    <AppToast
+      :message="formError || applicationMessage"
+      :tone="formError ? 'error' : 'success'"
+      @close="formError = ''; applicationMessage = ''"
+    />
     <section class="dh-application-page__hero">
       <div class="dh-application-page__container">
         <p>Application / New request</p>
@@ -209,8 +217,6 @@ async function signOut() {
 
           <p v-if="schoolsError" class="dh-application-form__error" role="alert">Unable to load driving schools. Please try again.</p>
           <p v-else-if="!schools?.length && schoolsStatus !== 'pending'" class="dh-application-form__error" role="alert">No driving schools are available yet.</p>
-          <p v-if="formError" class="dh-application-form__error" role="alert">{{ formError }}</p>
-
           <button type="submit" :disabled="isSubmitting || schoolsStatus === 'pending' || !selectedSchoolId || !selectedCategoryId">
             {{ isSubmitting ? 'Submitting application…' : 'Submit application →' }}
           </button>

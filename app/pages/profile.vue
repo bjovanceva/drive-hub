@@ -15,6 +15,13 @@ const passwordError = ref('')
 const passwordSuccess = ref('')
 const changingEmail = computed(() => profile.email.trim().toLowerCase() !== data.value?.user.email)
 
+function clearFeedback() {
+  profileError.value = ''
+  profileSuccess.value = ''
+  passwordError.value = ''
+  passwordSuccess.value = ''
+}
+
 watch(data, (value) => {
   if (!value) return
   profile.name = value.user.name
@@ -22,8 +29,7 @@ watch(data, (value) => {
 }, { immediate: true })
 
 async function saveProfile() {
-  profileError.value = ''
-  profileSuccess.value = ''
+  clearFeedback()
   saving.value = 'profile'
   try {
     data.value = await $fetch('/api/account/profile', {
@@ -45,8 +51,7 @@ async function saveProfile() {
 }
 
 async function savePassword() {
-  passwordError.value = ''
-  passwordSuccess.value = ''
+  clearFeedback()
   if (passwords.newPassword !== passwords.confirmPassword) {
     passwordError.value = 'New passwords do not match.'
     return
@@ -72,6 +77,11 @@ async function savePassword() {
 
 <template>
   <div class="dh-profile">
+    <AppToast
+      :message="profileError || passwordError || profileSuccess || passwordSuccess"
+      :tone="profileError || passwordError ? 'error' : 'success'"
+      @close="clearFeedback"
+    />
     <header class="dh-profile__hero">
       <div class="dh-profile__container">
         <p class="dh-profile__eyebrow">Your account</p>
@@ -105,8 +115,6 @@ async function savePassword() {
                 aria-describedby="email-password-help">
               <small id="email-password-help">Confirm your current password to change your sign-in email.</small>
             </label>
-            <p v-if="profileError" class="dh-profile__error" role="alert">{{ profileError }}</p>
-            <p v-if="profileSuccess" class="dh-profile__success" role="status">{{ profileSuccess }}</p>
             <button type="submit">{{ saving === 'profile' ? 'Saving…' : 'Save details' }}</button>
           </fieldset>
         </form>
@@ -131,8 +139,6 @@ async function savePassword() {
               Confirm new password
               <input v-model="passwords.confirmPassword" type="password" autocomplete="new-password" required minlength="8" maxlength="128">
             </label>
-            <p v-if="passwordError" class="dh-profile__error" role="alert">{{ passwordError }}</p>
-            <p v-if="passwordSuccess" class="dh-profile__success" role="status">{{ passwordSuccess }}</p>
             <button type="submit">{{ saving === 'password' ? 'Changing…' : 'Change password' }}</button>
           </fieldset>
         </form>
@@ -162,9 +168,6 @@ async function savePassword() {
 .dh-profile fieldset:disabled { opacity: 0.65; }
 .dh-profile fieldset:disabled button { cursor: wait; }
 .dh-profile input:focus-visible, .dh-profile button:focus-visible { outline: 2px solid var(--dh-color-text-primary); outline-offset: 3px; }
-.dh-profile__error, .dh-profile__success { margin: 0; padding: 0.875rem; font-size: 0.8125rem; line-height: 1.5; }
-.dh-profile__error { background: #fff0ed; color: #8f2619; }
-.dh-profile__success { background: #edf7d9; color: #29460d; }
 .dh-profile__sr-only { position: absolute; width: 1px !important; height: 1px; min-height: 0 !important; padding: 0 !important; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0 !important; }
 @media (max-width: 70rem) { .dh-profile__hero, .dh-profile__body { padding-inline: 2rem; } }
 @media (max-width: 52rem) { .dh-profile__grid { grid-template-columns: 1fr; } }

@@ -18,7 +18,11 @@ function formatPrice(value: number) {
 </script>
 
 <template>
-  <article class="dh-directory-card">
+  <NuxtLink
+    class="dh-directory-card"
+    :to="schoolRoutes.detail(school.id)"
+    :aria-label="`View ${school.name} details`"
+  >
     <div class="dh-directory-card__gridline" aria-hidden="true">
       <span>{{ String(position).padStart(2, '0') }}</span>
       <span>{{ formatCity(school.city) }}</span>
@@ -55,12 +59,10 @@ function formatPrice(value: number) {
 
       <div class="dh-directory-card__footer">
         <p>{{ school.vehicles }} · {{ school.languages.join(' / ') }}</p>
-        <div class="dh-directory-card__actions">
-          <NuxtLink class="dh-directory-card__view-button" :to="schoolRoutes.detail(school.id)">View details</NuxtLink>
-        </div>
+        <span class="dh-directory-card__view-button">View details <span aria-hidden="true">→</span></span>
       </div>
     </div>
-  </article>
+  </NuxtLink>
 </template>
 
 <style scoped>
@@ -74,12 +76,19 @@ function formatPrice(value: number) {
   flex-direction: column;
   border: 1px solid var(--dh-color-border-strong);
   background: var(--dh-color-bg-surface);
+  color: var(--dh-color-text-primary);
+  text-decoration: none;
   transition: box-shadow 180ms ease, transform 180ms ease;
 }
 
 .dh-directory-card:hover {
   box-shadow: 0.5rem 0.5rem 0 var(--dh-color-bg-status);
   transform: translate(-0.25rem, -0.25rem);
+}
+
+.dh-directory-card:focus-visible {
+  outline: 3px solid var(--dh-color-bg-status);
+  outline-offset: 4px;
 }
 
 .dh-directory-card__gridline {
@@ -168,16 +177,11 @@ function formatPrice(value: number) {
 
 .dh-directory-card__footer { margin-top: auto; align-items: flex-end; }
 .dh-directory-card__footer p { max-width: 13rem; color: var(--dh-color-text-secondary); font-size: 0.75rem; line-height: 1.35; text-transform: uppercase; }
-.dh-directory-card__actions { display: flex; align-items: center; gap: 0.75rem; }
-.dh-directory-card__view-button { display: inline-flex; min-height: 2.75rem; padding: 0.6rem 0.8rem; align-items: center; justify-content: center; border: 1px solid var(--dh-color-border-strong); background: var(--dh-color-bg-status); color: var(--dh-color-text-primary); font: inherit; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05rem; line-height: 1; text-decoration: none; text-transform: uppercase; }
-.dh-directory-card__footer a { color: var(--dh-color-text-primary); font-size: 0.75rem; font-weight: 600; text-decoration: none; text-transform: uppercase; white-space: nowrap; }
-.dh-directory-card__footer a:hover { color: var(--dh-color-bg-accent); }
-.dh-directory-card__footer a:focus-visible { outline: 2px solid var(--dh-color-bg-status); outline-offset: 3px; }
+.dh-directory-card__view-button { display: inline-flex; min-height: 2.75rem; padding: 0.6rem 0.8rem; align-items: center; justify-content: center; gap: .5rem; border: 1px solid var(--dh-color-border-strong); background: var(--dh-color-bg-status); color: var(--dh-color-text-primary); font: inherit; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05rem; line-height: 1; text-transform: uppercase; white-space: nowrap; }
 
 @media (max-width: 32rem) {
   .dh-directory-card__title-row,
-  .dh-directory-card__footer,
-  .dh-directory-card__actions { align-items: flex-start; flex-direction: column; }
+  .dh-directory-card__footer { align-items: flex-start; flex-direction: column; }
   .dh-directory-card__rating { text-align: left; }
 }
 </style>
