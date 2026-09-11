@@ -11,15 +11,85 @@ function source(path) {
     .replace(/export /g, '')
 }
 
+function chatService(repository, broadcast = async () => {}) {
+  const Service = runInNewContext(`${source('../server/services/ChatService.ts')}; ChatService`, {
+    ChatRepository: class { constructor() { return repository } },
+    broadcastChatMessage: broadcast,
+    createError: details => Object.assign(new Error(details.statusMessage), details),
+    console: { error() {} }
+  })
+  return new Service()
+}
+
+test('chat service rejects nonparticipants before reading or writing messages', async () => {
+  const service = chatService({
+    findParticipant: async () => null,
+    findRecentMessages: async () => assert.fail('Must not read messages'),
+    createMessage: async () => assert.fail('Must not write messages')
+  })
+  await assert.rejects(service.listMessages(1, '12'), { statusCode: 403 })
+  await assert.rejects(service.sendMessage(1, '12', { content: 'Hello' }), { statusCode: 403 })
+  await assert.rejects(service.listMessages(1, 'invalid'), { statusCode: 400 })
+  await assert.rejects(service.sendMessage(1, '12', { content: '  ' }), { statusCode: 400 })
+})
+
+test('chat service saves trimmed content before broadcasting and preserves success on delivery failure', async () => {
+  const order = []
+  const saved = { id: 7, conversationId: 12, content: 'Hello' }
+  const service = chatService({
+    findParticipant: async () => ({ userId: 1 }),
+    createMessage: async (conversationId, senderId, content) => {
+      assert.equal(conversationId, 12)
+      assert.equal(senderId, 1)
+      assert.equal(content, 'Hello')
+      order.push('save')
+      return saved
+    },
+    findRecentMessages: async () => [{ id: 2 }, { id: 1 }]
+  }, async message => {
+    assert.equal(message, saved)
+    order.push('broadcast')
+    throw new Error('Delivery unavailable')
+  })
+  assert.equal(await service.sendMessage(1, '12', { content: ' Hello ' }), saved)
+  assert.deepEqual(order, ['save', 'broadcast'])
+  assert.deepEqual(await service.listMessages(1, '12'), [{ id: 1 }, { id: 2 }])
+})
+
+test('chat service deduplicates participants and reuses the existing private key format', async () => {
+  const existing = { id: 12 }
+  const service = chatService({
+    findUsers: async ids => {
+      assert.deepEqual(Array.from(ids), [2])
+      return [{ id: 2 }]
+    },
+    findPrivateConversation: async key => {
+      assert.equal(key, '10:2')
+      return existing
+    },
+    createPrivateConversation: async () => assert.fail('Must reuse existing private chat'),
+    createGroupConversation: async (name, ids) => {
+      assert.equal(name, 'School')
+      assert.deepEqual(Array.from(ids), [10, 2])
+      return { id: 13 }
+    }
+  })
+  assert.equal(await service.createConversation(10, { type: 'PRIVATE', userIds: [10, 2, 2] }), existing)
+  assert.equal((await service.createConversation(10, { type: 'GROUP', name: ' School ', userIds: [2, 2] })).id, 13)
+  await assert.rejects(service.createConversation(10, { type: 'PRIVATE', userIds: [] }), { statusCode: 400 })
+  await assert.rejects(service.createConversation(10, null), { statusCode: 400 })
+})
+
 test('broadcast is limited to current participants and valid sessions; failed peers do not stop delivery', async () => {
   let participants = [1, 2, 3, 4]
   const api = runInNewContext(`${source('../server/utils/chatRealtime.ts')}
     ;({ registerChatPeer, unregisterChatPeer, broadcastChatMessage })`, {
-    prisma: { conversationParticipant: { findMany: async ({ where }) => {
-      assert.equal(where.conversationId, 12)
-      assert.equal(where.user.role, 'USER')
-      return participants.map(userId => ({ userId }))
-    } } },
+    ChatRepository: class {
+      async findDeliveryParticipants(conversationId) {
+        assert.equal(conversationId, 12)
+        return participants.map(userId => ({ userId }))
+      }
+    },
     requireUserSession: async ({ request }) => {
       if (request.expired) throw new Error('Expired')
       return { user: { id: request.userId } }

@@ -1,5 +1,5 @@
 import type { Peer } from 'crossws'
-import prisma from './prisma'
+import { ChatRepository } from '../repositories/ChatRepository'
 
 // One Nitro process. Multiple instances need a shared pub/sub transport.
 const connections = new Map<Peer, number>()
@@ -19,10 +19,7 @@ export function unregisterChatPeer(peer: Peer) {
 
 export async function broadcastChatMessage(message: { id: number; conversationId: number }) {
   // Resolve membership at delivery time rather than trusting a client room name.
-  const participants = await prisma.conversationParticipant.findMany({
-    where: { conversationId: message.conversationId, user: { role: 'USER' } },
-    select: { userId: true }
-  })
+  const participants = await new ChatRepository().findDeliveryParticipants(message.conversationId)
   const recipients = new Set(participants.map(participant => participant.userId))
   const payload = JSON.stringify({ type: 'message.created', message })
   for (const [peer, userId] of connections) {

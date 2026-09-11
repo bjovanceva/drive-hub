@@ -1,20 +1,7 @@
-import prisma from '../../utils/prisma'
 import { requireOrdinaryUser } from '../../utils/authorization'
+import { ChatService } from '../../services/ChatService'
 
 export default defineEventHandler(async (event) => {
-  const currentUser = await requireOrdinaryUser(event)
-
-  return prisma.user.findMany({
-    where: {
-      id: { not: currentUser.id }
-    },
-    select: {
-      id: true,
-      name: true,
-      role: true
-    },
-    orderBy: {
-      name: 'asc'
-    }
-  })
+  const user = await requireOrdinaryUser(event)
+  return new ChatService().listUsers(user.id)
 })
