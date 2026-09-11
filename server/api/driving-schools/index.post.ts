@@ -1,14 +1,11 @@
 import { DrivingSchoolService } from '../../services/DrivingSchoolService'
 import { requireAdmin } from '../../utils/authorization'
 
-/** POST /api/driving-schools validates and persists a new school. */
+/** Legacy admin-compatible creation endpoint; no public directory UI exposes it. */
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
   const body = await readBody(event) ?? {}
-
-  const service = new DrivingSchoolService()
-
-  const school = await service.createDrivingSchool({
+  const school = await new DrivingSchoolService().createDrivingSchool({
     name: body.name,
     email: body.email,
     address: body.address,
@@ -19,7 +16,6 @@ export default defineEventHandler(async (event) => {
     createdAt: body.createdAt,
     categoryIds: Array.isArray(body.categoryIds) ? body.categoryIds : undefined
   })
-
   setResponseStatus(event, 201)
   return school
 })

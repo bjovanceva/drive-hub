@@ -29,11 +29,12 @@ refresh the complete development dataset with:
 npm run db:seed
 ```
 
-The seed is transactional and idempotent. It populates every current domain
-table: 17 licence categories, five development schools and their category
+The seed is transactional and idempotent. It populates 17 licence categories,
+442 ordered curriculum lessons, five development schools and their category
 connections, five role/context users, six vehicles, and sample applications in
-each status. It updates records identified by their stable email, code,
-registration, or application composite key instead of duplicating them.
+each status. It updates records identified by their stable category/sequence,
+email, code, registration, or application composite key instead of duplicating
+them.
 
 All development accounts use `SEED_DEFAULT_PASSWORD`, or `DriveHub123!` when
 the variable is omitted:
@@ -199,18 +200,35 @@ The backend schema separates reusable curriculum from student progress:
   status, notes, instructor and vehicle for one curriculum lesson attempt in one
   enrollment. Multiple attempts are retained rather than overwriting history.
 
+The development seed publishes a complete lesson plan for all 17 categories.
+Every curriculum row is one 45-minute teaching hour, and the generated theory
+and practical counts exactly match the corresponding values stored on the
+category. Repeated topics are labelled `(1/n)`, `(2/n)`, and so on. Category B,
+for example, progresses from controls through proving-ground reversing,
+turning, parking, uphill starts and precision stopping before urban, rural,
+high-speed and independent road driving. Motorcycle, trailer, goods, passenger,
+tractor, mobile-machinery and tram categories have their own safety checks,
+manoeuvres and operating context.
+
+The catalogue is realistic development data informed by the North Macedonian
+exam structure and common European category competencies; it is not a claim of
+regulatory accreditation. Update `prisma/curriculum.mjs` if a school needs to
+mirror an approved local teaching plan. Run `npm run test:curriculum` to verify
+coverage, counts and ordering without connecting to PostgreSQL.
+
 Completed lesson count is the number of distinct lessons with a `COMPLETED`
 session. The next lesson is
 the lowest-sequence category lesson without a completed session for that
 enrollment. Keeping these values derived avoids stale progress counters. The
-schema and approval workflow are ready for presentation/API work; curriculum and
-training management screens are intentionally not included yet.
+manager dashboard can now schedule curriculum sessions and move scheduled
+sessions to completed or cancelled states. Student and instructor progress is
+derived immediately from those session records.
 
 ## Unified dashboard
 
 Authenticated ordinary users can open `/dashboard`. The route resolves their
 current school role and provides the shared entry point for student, instructor,
-manager and applicant experiences. The student experience is implemented now:
+manager and applicant experiences. The student workspace includes:
 
 - all current and historical training programmes;
 - overall, theory and practical lesson progress;
@@ -219,10 +237,22 @@ manager and applicant experiences. The student experience is implemented now:
 - an expandable lesson plan with completed and scheduled attempts; and
 - direct contact actions for the current driving school.
 
+The instructor workspace contains the instructor's actual assigned sessions,
+student roster, curriculum progress and vehicles. Theory sessions created
+without an instructor do not appear on an assigned driving instructor's
+schedule.
+
+The manager workspace includes application approval with explicit instructor
+assignment, instructor management, the complete school student roster, lesson
+scheduling, and a searchable lesson ledger. Managers can filter lessons by
+student, instructor, category and status, then complete, cancel or reschedule a
+scheduled session. Completion becomes available only after the scheduled end;
+rescheduling checks student, instructor and vehicle conflicts.
+
 The `/api/dashboard` response is scoped from the authenticated database identity,
-so a client cannot select another student's ID. Instructor and manager responses
-currently expose only their dashboard role; their detailed workspaces are reserved
-for the next implementation phase.
+so a client cannot select another student's or school's ID. Every manager lesson
+mutation verifies the signed-in manager's current school membership on the
+server.
 
 Deletion dialogs explain the impact. Deleting a user removes their applications
 and clears manager/instructor references. Deleting a school removes its vehicles

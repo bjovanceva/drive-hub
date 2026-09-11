@@ -53,6 +53,11 @@ onBeforeRouteUpdate(() => !busy.value)
 </script>
 <template>
   <div class="dh-admin">
+    <AppToast
+      :message="mutationError || notice"
+      :tone="mutationError ? 'error' : 'success'"
+      @close="mutationError = ''; notice = ''"
+    />
     <header class="dh-admin-hero">
       <div>
         <p>Drive Hub / Operations</p>
@@ -74,10 +79,6 @@ onBeforeRouteUpdate(() => !busy.value)
           <span>{{ data?.[item.id].length ?? 0 }}</span>
         </NuxtLink>
       </nav>
-      <p v-if="notice" class="dh-admin-success" role="status">{{ notice }}</p>
-      <p v-if="mutationError && !editor && !deletion" class="dh-admin-error" role="alert">
-        {{ mutationError }}
-      </p>
       <div v-if="error" class="dh-admin-empty">
         <h2>Unable to load administration</h2>
         <p>Please check your connection and administrator access.</p>

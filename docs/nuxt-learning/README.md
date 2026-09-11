@@ -20,6 +20,9 @@ but also:
 4. [`useFetch` vs `fetch`, `$fetch`, Axios, and `useAsyncData`](./04-data-fetching.md)
 5. [The client build, SSR build, and Nitro output](./05-builds-and-bundles.md)
 6. [Practical experiments](./06-practical-experiments.md)
+7. [Vue reactivity and lifecycle compared with React](./07-vue-reactivity-and-lifecycle.md)
+8. [Nuxt and Vue Router composables compared with React](./08-nuxt-composables-and-routing.md)
+9. [Drive Hub custom composables and their React equivalents](./09-drive-hub-composables.md)
 
 ## What is true in Drive Hub today
 
@@ -82,4 +85,3 @@ and a client-compiled form hydrates that HTML and handles later interactions.
 - [Nuxt 4 directory structure](https://nuxt.com/docs/4.x/directory-structure)
 - [Nuxt rendering modes](https://nuxt.com/docs/4.x/guide/concepts/rendering)
 - [Nuxt data fetching](https://nuxt.com/docs/4.x/getting-started/data-fetching)
-

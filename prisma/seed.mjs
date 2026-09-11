@@ -1,6 +1,7 @@
 import { Hash } from '@adonisjs/hash'
 import { Scrypt } from '@adonisjs/hash/drivers/scrypt'
 import pg from 'pg'
+import { buildCurricula } from './curriculum.mjs'
 
 const { Client } = pg
 
@@ -112,6 +113,29 @@ async function upsertCategory(client, category) {
   )
 
   return result.rows[0].id
+}
+
+async function upsertCurriculumLesson(client, curriculumLesson, categoryIds) {
+  await client.query(
+    `INSERT INTO "CurriculumLesson"
+      ("categoryId", "sequence", "type", "title", "concept", "goal", "durationMinutes")
+     VALUES ($1, $2, $3::"LessonType", $4, $5, $6, $7)
+     ON CONFLICT ("categoryId", "sequence") DO UPDATE SET
+       "type" = EXCLUDED."type",
+       "title" = EXCLUDED."title",
+       "concept" = EXCLUDED."concept",
+       "goal" = EXCLUDED."goal",
+       "durationMinutes" = EXCLUDED."durationMinutes"`,
+    [
+      categoryIds.get(curriculumLesson.categoryCode),
+      curriculumLesson.sequence,
+      curriculumLesson.type,
+      curriculumLesson.title,
+      curriculumLesson.concept,
+      curriculumLesson.goal,
+      curriculumLesson.durationMinutes
+    ]
+  )
 }
 
 async function upsertSchool(client, school) {
@@ -259,6 +283,11 @@ async function seed() {
       categoryIds.set(category.code, await upsertCategory(client, category))
     }
 
+    const curriculumLessons = buildCurricula(categories)
+    for (const curriculumLesson of curriculumLessons) {
+      await upsertCurriculumLesson(client, curriculumLesson, categoryIds)
+    }
+
     const schoolIds = new Map()
     for (const school of schools) {
       const schoolId = await upsertSchool(client, school)
@@ -304,7 +333,7 @@ async function seed() {
     }
 
     await client.query('COMMIT')
-    console.log(`Seed complete: ${categories.length} categories, ${schools.length} schools, ${users.length} users, ${vehicles.length} vehicles, ${applications.length} applications.`)
+    console.log(`Seed complete: ${categories.length} categories, ${curriculumLessons.length} curriculum lessons, ${schools.length} schools, ${users.length} users, ${vehicles.length} vehicles, ${applications.length} applications.`)
     console.log('Development users: applicant, student, instructor, manager and admin @drivehub.test')
     console.log('Password: SEED_DEFAULT_PASSWORD or the documented local default.')
   } catch (error) {

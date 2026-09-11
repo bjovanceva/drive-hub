@@ -46,19 +46,3 @@ export async function getAuthenticatedUser(event: H3Event) {
 
   return new AuthService().getAuthenticatedUser(session.user.id)
 }
-
-/** Restricts school reads for managers while keeping the public directory open. */
-export async function restrictManagerToSchool(event: H3Event, schoolId: number) {
-  const user = await getAuthenticatedUser(event)
-
-  if (!user) return null
-
-  if (user.role === 'USER' && user.managedSchoolId !== null && user.managedSchoolId !== schoolId) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'Managers can only view their own driving school'
-    })
-  }
-
-  return user
-}

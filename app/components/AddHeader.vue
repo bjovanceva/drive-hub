@@ -28,6 +28,14 @@ const router = useRouter()
 const isMenuOpen = ref(false)
 const { loggedIn, user, logout, mutationStatus } = useAuth()
 const isAdmin = computed(() => user.value?.role === 'ADMIN')
+const canStartApplication = computed(() =>
+  loggedIn.value && (
+    user.value?.role === 'USER' &&
+    user.value.studentSchoolId === null &&
+    user.value.instructorSchoolId === null &&
+    user.value.managedSchoolId === null
+  )
+)
 const isProfileActive = computed(() => isNavigationActive(route, router.resolve(userRoutes.profile)))
 const isApplicationActive = computed(() => isNavigationActive(route, router.resolve(props.applicationTo)))
 
@@ -88,7 +96,7 @@ watch(() => route.fullPath, closeMenu)
         </button>
       </template>
 
-      <NuxtLink v-if="!isAdmin" class="dh-header__application"
+      <NuxtLink v-if="canStartApplication" class="dh-header__application"
         :class="{ 'dh-header__application--active': isApplicationActive }"
         :aria-current="isApplicationActive ? 'page' : undefined"
         :to="props.applicationTo" @click="closeMenu">

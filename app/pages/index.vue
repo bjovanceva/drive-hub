@@ -17,6 +17,14 @@ useSeoMeta({
 
 const route = useRoute()
 const pageData = defaultHomePageData
+const { loggedIn, user } = useUserSession()
+const canStartApplication = computed(() =>
+  loggedIn.value &&
+  user.value?.role === 'USER' &&
+  user.value.studentSchoolId === null &&
+  user.value.instructorSchoolId === null &&
+  user.value.managedSchoolId === null
+)
 
 // Both dropdowns are populated by /api/search-options. "All" is the only
 // UI-only choice; every concrete city and category originates in the database.
@@ -206,7 +214,7 @@ function handleSchoolSearch(filters: { location: string, category: string }) {
       </div>
     </section>
 
-    <section id="apply" class="dh-home__cta" aria-labelledby="cta-heading">
+    <section v-if="canStartApplication" id="apply" class="dh-home__cta" aria-labelledby="cta-heading">
       <div class="dh-home__container dh-home__cta-inner">
         <div class="dh-home__cta-copy">
           <p class="dh-home__eyebrow dh-home__eyebrow--status">

@@ -140,3 +140,10 @@
   advisory before production instead of applying the suggested unsafe downgrade.
 - [ ] Document production migrations, seeding, backups, logging, and deployment
   environment variables.
+
+
+- fix vehicle listing to be scrollable, not to expand and push everything down if we add vehicles
+- There is something about assinged vehicle.
+- Also idk but the current dashboard is not good, maybe organize it in subtabs, one for students, one for drivers, one for lesosns, and there we show the lesson list and schedule lesson stuff
+- Make the view details for school be the whole box of the school clickable not, to directly click the 'view details' button
+- The save programe for student is not good, make it show a edit pop up or somehting, because i can make edits to all students but when i click save programe on one then the other students changes are gone

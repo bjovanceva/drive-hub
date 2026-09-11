@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { authRoutes, schoolRoutes } from '#shared/constants/routes'
+import { adminRoutes, authRoutes, schoolRoutes, userRoutes } from '#shared/constants/routes'
 
 definePageMeta({ layout: 'default', middleware: 'auth' })
 
@@ -35,6 +35,14 @@ interface InstructorOption {
 
 const route = useRoute()
 const { user, logout, mutationStatus } = useAuth()
+if (user.value && (
+  user.value.role !== 'USER' ||
+  user.value.studentSchoolId !== null ||
+  user.value.instructorSchoolId !== null ||
+  user.value.managedSchoolId !== null
+)) {
+  await navigateTo(user.value.role === 'ADMIN' ? adminRoutes.dashboard : userRoutes.dashboard)
+}
 const { data: schools, status: schoolsStatus, error: schoolsError } = await useFetch<SchoolOption[]>('/api/driving-schools')
 
 const initialSchoolId = Number(route.query.schoolId)
@@ -45,13 +53,29 @@ const selectedInstructorId = ref<number | null>(null)
 const instructorOptions = ref<InstructorOption[]>([])
 const instructorsStatus = ref<'idle' | 'pending'>('idle')
 const formError = ref('')
+const applicationMessage = ref('')
 const isSubmitting = ref(false)
 const createdApplication = ref<CreatedApplication | null>(null)
 
 const selectedSchool = computed(() => schools.value?.find(school => school.id === selectedSchoolId.value))
 const categoryOptions = computed(() => selectedSchool.value?.categories ?? [])
 
-watch(selectedSchoolId, (schoolId, previousSchoolId) => {
+watch([schools, schoolsStatus], ([availableSchools, status]) => {
+  if (status !== 'success' || !selectedSchoolId.value) return
+
+  const school = availableSchools?.find(option => option.id === selectedSchoolId.value)
+  if (!school) {
+    selectedSchoolId.value = null
+    selectedCategoryId.value = null
+    return
+  }
+
+  if (selectedCategoryId.value && !school.categories.some(category => category.id === selectedCategoryId.value)) {
+    selectedCategoryId.value = null
+  }
+}, { immediate: true })
+
+watch(selectedSchoolId, async (schoolId, previousSchoolId, onCleanup) => {
   if (schoolId !== previousSchoolId && !categoryOptions.value.some(category => category.id === selectedCategoryId.value)) {
     selectedCategoryId.value = null
   }
@@ -64,15 +88,22 @@ watch(selectedSchoolId, (schoolId, previousSchoolId) => {
     return
   }
 
+  let cancelled = false
+  onCleanup(() => { cancelled = true })
   instructorsStatus.value = 'pending'
-  $fetch<InstructorOption[]>(`/api/driving-schools/${schoolId}/instructors`)
-    .then(instructors => { instructorOptions.value = instructors })
-    .catch(() => { instructorOptions.value = [] })
-    .finally(() => { instructorsStatus.value = 'idle' })
+  try {
+    const instructors = await $fetch<InstructorOption[]>(`/api/driving-schools/${schoolId}/instructors`)
+    if (!cancelled) instructorOptions.value = instructors
+  } catch {
+    if (!cancelled) instructorOptions.value = []
+  } finally {
+    if (!cancelled) instructorsStatus.value = 'idle'
+  }
 }, { immediate: true })
 
 async function submitApplication() {
   formError.value = ''
+  applicationMessage.value = ''
 
   if (!selectedSchoolId.value || !selectedCategoryId.value) {
     formError.value = 'Choose a driving school and category before continuing.'
@@ -90,6 +121,7 @@ async function submitApplication() {
         preferredInstructorId: selectedInstructorId.value
       }
     })
+    applicationMessage.value = 'Your application was submitted successfully.'
   } catch (error: unknown) {
     formError.value = (error as any)?.data?.statusMessage
       ?? (error as any)?.data?.message
@@ -109,6 +141,11 @@ async function signOut() {
 
 <template>
   <div class="dh-application-page">
+    <AppToast
+      :message="formError || applicationMessage"
+      :tone="formError ? 'error' : 'success'"
+      @close="formError = ''; applicationMessage = ''"
+    />
     <section class="dh-application-page__hero">
       <div class="dh-application-page__container">
         <p>Application / New request</p>
@@ -142,15 +179,24 @@ async function signOut() {
 
           <label>
             Driving school
-            <div class="dh-application-form__readonly-field">
-              {{ selectedSchool?.name || (schoolsStatus === 'pending' ? 'Loading driving school…' : 'Driving school not selected') }}
-            </div>
+            <select
+              v-model="selectedSchoolId"
+              :disabled="schoolsStatus === 'pending' || Boolean(schoolsError) || !schools?.length"
+              required
+            >
+              <option :value="null">
+                {{ schoolsStatus === 'pending' ? 'Loading driving schools…' : 'Choose a driving school' }}
+              </option>
+              <option v-for="school in schools || []" :key="school.id" :value="school.id">
+                {{ school.name }}{{ school.city ? ` · ${school.city}` : '' }}
+              </option>
+            </select>
           </label>
 
           <label>
             Licence category
             <select v-model="selectedCategoryId" :disabled="!selectedSchoolId || !categoryOptions.length" required>
-              <option :value="null">Choose a category</option>
+              <option :value="null">{{ selectedSchoolId ? 'Choose a category' : 'Choose a school first' }}</option>
               <option v-for="category in categoryOptions" :key="category.id" :value="category.id">
                 {{ category.name }}{{ category.code ? ` (${category.code})` : '' }}
               </option>
@@ -160,7 +206,9 @@ async function signOut() {
           <label>
             Preferred instructor (optional)
             <select v-model="selectedInstructorId" :disabled="!selectedSchoolId || instructorsStatus === 'pending' || !instructorOptions.length">
-              <option :value="null">No preferred instructor</option>
+              <option :value="null">
+                {{ !selectedSchoolId ? 'Choose a school first' : instructorsStatus === 'pending' ? 'Loading instructors…' : 'No preferred instructor' }}
+              </option>
               <option v-for="instructor in instructorOptions" :key="instructor.id" :value="instructor.id">
                 {{ instructor.name }} · {{ instructor.email }}
               </option>
@@ -169,9 +217,7 @@ async function signOut() {
 
           <p v-if="schoolsError" class="dh-application-form__error" role="alert">Unable to load driving schools. Please try again.</p>
           <p v-else-if="!schools?.length && schoolsStatus !== 'pending'" class="dh-application-form__error" role="alert">No driving schools are available yet.</p>
-          <p v-if="formError" class="dh-application-form__error" role="alert">{{ formError }}</p>
-
-          <button type="submit" :disabled="isSubmitting || schoolsStatus === 'pending'">
+          <button type="submit" :disabled="isSubmitting || schoolsStatus === 'pending' || !selectedSchoolId || !selectedCategoryId">
             {{ isSubmitting ? 'Submitting application…' : 'Submit application →' }}
           </button>
           <NuxtLink to="/schools">Browse driving schools</NuxtLink>
@@ -208,9 +254,7 @@ async function signOut() {
 .dh-application-form header p,
 .dh-application-page__success p { margin: 0.75rem 0 0; color: var(--dh-color-text-secondary); line-height: 1.6; }
 .dh-application-form label { display: flex; flex-direction: column; gap: 0.5rem; color: var(--dh-color-text-secondary); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.05rem; text-transform: uppercase; }
-.dh-application-form select,
-.dh-application-form__readonly-field { width: 100%; height: 3.5rem; padding: 0 1rem; border: 1px solid var(--dh-color-border-strong); border-radius: 0; background: #fff; color: var(--dh-color-text-primary); font: inherit; }
-.dh-application-form__readonly-field { display: flex; align-items: center; font-weight: 600; }
+.dh-application-form select { width: 100%; height: 3.5rem; padding: 0 1rem; border: 1px solid var(--dh-color-border-strong); border-radius: 0; background: #fff; color: var(--dh-color-text-primary); font: inherit; }
 .dh-application-form button { min-height: 3.75rem; border: 1px solid var(--dh-color-border-strong); border-radius: 0; background: var(--dh-color-bg-accent); color: #fff; font-weight: 800; letter-spacing: 0.04rem; text-transform: uppercase; cursor: pointer; }
 .dh-application-form button:hover { background: var(--dh-color-bg-accent-hover); }
 .dh-application-form button:disabled { cursor: wait; opacity: 0.65; }
