@@ -209,7 +209,7 @@ function latestSession(lesson: DashboardLesson) {
                     <span>{{ sessionDuration(session) }}</span>
                   </div>
                   <h3>{{ session.lesson.title }}</h3>
-                  <p>{{ session.student.name }} · Lesson {{ String(session.lesson.sequence).padStart(2, '0') }}</p>
+                  <p><UserName :user-id="session.student.id" :name="session.student.name" /> · Lesson {{ String(session.lesson.sequence).padStart(2, '0') }}</p>
                 </div>
                 <div class="dh-instructor__session-side">
                   <span class="dh-instructor__session-status" :class="`is-${session.status.toLowerCase()}`">
@@ -242,7 +242,7 @@ function latestSession(lesson: DashboardLesson) {
                   <span>{{ formatTime(session.scheduledStart) }}</span>
                 </div>
                 <div>
-                  <strong>{{ session.student.name }}</strong>
+                  <strong><UserName :user-id="session.student.id" :name="session.student.name" /></strong>
                   <span>{{ session.category.code || '—' }} · {{ session.lesson.title }}</span>
                 </div>
                 <span>{{ session.vehicle?.registration || 'Vehicle pending' }}</span>
@@ -289,7 +289,7 @@ function latestSession(lesson: DashboardLesson) {
               <header>
                 <span class="dh-instructor__avatar">{{ initials(student.student.name) }}</span>
                 <div>
-                  <h3>{{ student.student.name }}</h3>
+                  <h3><UserName :user-id="student.student.id" :name="student.student.name" /></h3>
                   <a :href="`mailto:${student.student.email}`">{{ student.student.email }}</a>
                 </div>
                 <span class="dh-training__status" :class="`dh-training__status--${student.status.toLowerCase()}`">
@@ -421,7 +421,7 @@ function latestSession(lesson: DashboardLesson) {
                 <dl>
                   <div>
                     <dt>Instructor</dt>
-                    <dd>{{ training.instructor?.name || 'Awaiting assignment' }}</dd>
+                    <dd><UserName :user-id="training.instructor?.id" :name="training.instructor?.name || 'Awaiting assignment'" /></dd>
                   </div>
                   <div>
                     <dt>Vehicle</dt>
@@ -466,7 +466,7 @@ function latestSession(lesson: DashboardLesson) {
                 <p>Next booking</p>
                 <template v-if="training.upcomingSession">
                   <strong>{{ formatDateTime(training.upcomingSession.scheduledStart) }}</strong>
-                  <span>{{ training.upcomingSession.instructor?.name || (training.lessons.find(lesson => lesson.id === training.upcomingSession?.curriculumLessonId)?.type === 'THEORY' ? 'No instructor required' : 'Instructor pending') }}</span>
+                  <span><UserName :user-id="training.upcomingSession.instructor?.id" :name="training.upcomingSession.instructor?.name || (training.lessons.find(lesson => lesson.id === training.upcomingSession?.curriculumLessonId)?.type === 'THEORY' ? 'No instructor required' : 'Instructor pending')" /></span>
                 </template>
                 <template v-else>
                   <strong>Not scheduled</strong>

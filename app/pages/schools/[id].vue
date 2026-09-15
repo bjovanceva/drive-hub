@@ -109,7 +109,10 @@ function formatAddress(raw: string | null | undefined) {
                   <small>{{ vehicle.brand }} {{ vehicle.model }} · {{ vehicle.year }}</small>
                 </div>
                 <strong>
-                  <span>{{ vehicle.instructorName || 'Instructor unassigned' }}</span>
+                  <UserName
+                    :user-id="vehicle.instructorId"
+                    :name="vehicle.instructorName || 'Instructor unassigned'"
+                  />
                   <small v-if="vehicle.instructorEmail">{{ vehicle.instructorEmail }}</small>
                 </strong>
               </li>

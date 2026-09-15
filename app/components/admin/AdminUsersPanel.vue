@@ -78,7 +78,7 @@ const relationshipLabels = (user: AdminUser) =>
         <tbody>
           <tr v-for="user in visibleUsers" :key="user.id">
             <td>
-              <strong>{{ user.name }}</strong>
+              <strong><UserName :user-id="user.id" :name="user.name" /></strong>
               <small>{{ user.email }}</small>
             </td>
             <td>

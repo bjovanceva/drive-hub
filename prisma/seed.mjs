@@ -172,16 +172,17 @@ async function replaceSchoolCategories(client, schoolId, categoryIds) {
 async function upsertUser(client, user, passwordHash) {
   const result = await client.query(
     `INSERT INTO "User"
-      ("name", "email", "password", "role", "drivingSchoolId", "instructorSchoolId")
-     VALUES ($1, $2, $3, $4::"UserRole", $5, $6)
+      ("name", "email", "phone", "password", "role", "drivingSchoolId", "instructorSchoolId")
+     VALUES ($1, $2, $3, $4, $5::"UserRole", $6, $7)
      ON CONFLICT ("email") DO UPDATE SET
        "name" = EXCLUDED."name",
+       "phone" = EXCLUDED."phone",
        "password" = EXCLUDED."password",
        "role" = EXCLUDED."role",
        "drivingSchoolId" = EXCLUDED."drivingSchoolId",
        "instructorSchoolId" = EXCLUDED."instructorSchoolId"
      RETURNING "id"`,
-    [user.name, user.email, passwordHash, user.role, user.studentSchoolId, user.instructorSchoolId]
+    [user.name, user.email, user.phone, passwordHash, user.role, user.studentSchoolId, user.instructorSchoolId]
   )
 
   return result.rows[0].id
@@ -300,11 +301,11 @@ async function seed() {
     }
 
     const users = [
-      { name: 'Ana Applicant', email: 'applicant@drivehub.test', role: 'USER', studentSchoolId: null, instructorSchoolId: null },
-      { name: 'Stefan Student', email: 'student@drivehub.test', role: 'USER', studentSchoolId: schoolIds.get('centar'), instructorSchoolId: null },
-      { name: 'Elena Instructor', email: 'instructor@drivehub.test', role: 'USER', studentSchoolId: null, instructorSchoolId: schoolIds.get('centar') },
-      { name: 'Marko School Manager', email: 'manager@drivehub.test', role: 'USER', studentSchoolId: null, instructorSchoolId: null },
-      { name: 'Global Administrator', email: 'admin@drivehub.test', role: 'ADMIN', studentSchoolId: null, instructorSchoolId: null }
+      { name: 'Ana Applicant', email: 'applicant@drivehub.test', phone: '+389 22 330 404', role: 'USER', studentSchoolId: null, instructorSchoolId: null },
+      { name: 'Stefan Student', email: 'student@drivehub.test', phone: '+389 22 000 406', role: 'USER', studentSchoolId: schoolIds.get('centar'), instructorSchoolId: null },
+      { name: 'Elena Instructor', email: 'instructor@drivehub.test', phone: '+389 12 330 200', role: 'USER', studentSchoolId: null, instructorSchoolId: schoolIds.get('centar') },
+      { name: 'Marko School Manager', email: 'manager@drivehub.test', phone: '+389 22 350 554', role: 'USER', studentSchoolId: null, instructorSchoolId: null },
+      { name: 'Global Administrator', email: 'admin@drivehub.test', phone: '+389 22 787 404', role: 'ADMIN', studentSchoolId: null, instructorSchoolId: null }
     ]
 
     const userIds = new Map()

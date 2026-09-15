@@ -89,14 +89,14 @@ const visibleApplications = computed(() =>
         <tbody>
           <tr v-for="application in visibleApplications" :key="application.id">
             <td>
-              <strong>{{ userName(application.userId) }}</strong>
+              <strong><UserName :user-id="application.userId" :name="userName(application.userId)" /></strong>
               <small>{{ users.find((user) => user.id === application.userId)?.email }}</small>
             </td>
             <td>
               {{ schoolName(application.drivingSchoolId) }}
               <small>Category {{ categoryName(application.categoryId) }}</small>
             </td>
-            <td>{{ userName(application.preferredInstructorId) }}</td>
+            <td><UserName :user-id="application.preferredInstructorId" :name="userName(application.preferredInstructorId)" /></td>
             <td>
               <span
                 class="dh-admin-tag"

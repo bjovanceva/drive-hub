@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import AddHeader from '../components/AddHeader.vue';
 import AppFooter from '../components/AppFooter.vue';
+import ChatLauncher from '../components/ChatLauncher.vue';
 </script>
 
 <template>
@@ -10,6 +11,7 @@ import AppFooter from '../components/AppFooter.vue';
       <slot />
     </main>
     <AppFooter />
+    <ChatLauncher />
   </div>
 </template>
 

@@ -53,7 +53,7 @@ const visibleSchools = computed(() =>
             <td :class="{
               'missing-manager': ['Unassigned', 'Unknown user'].includes(userName(item.managerId))
             }">
-              {{ userName(item.managerId) }}
+              <UserName :user-id="item.managerId" :name="userName(item.managerId)" />
             </td>
             <td>{{users.filter((user) => user.drivingSchoolId === item.id).length}}</td>
             <td>{{users.filter((user) => user.instructorSchoolId === item.id).length}}</td>

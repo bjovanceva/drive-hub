@@ -20,6 +20,7 @@ export const loginUserSchema = z.object({
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().toLowerCase().email(),
+  phone: z.string().trim().max(40).regex(/^[+0-9().\s-]*$/, 'Enter a valid phone number').nullable().optional(),
   currentPassword: z.string().max(128).optional()
 }).strict()
 

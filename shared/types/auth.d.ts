@@ -5,6 +5,7 @@ declare module '#auth-utils' {
     id: number
     name: string
     email: string
+    phone?: string | null
     role: AppUserRole
     studentSchoolId: number | null
     instructorSchoolId: number | null

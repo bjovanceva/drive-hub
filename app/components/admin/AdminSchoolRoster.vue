@@ -36,7 +36,7 @@ watch(candidates, () => {
     <ul>
       <li v-for="user in members" :key="user.id">
         <div>
-          <strong>{{ user.name }}</strong>
+          <strong><UserName :user-id="user.id" :name="user.name" /></strong>
           <small>{{ user.email }}</small>
         </div>
         <button

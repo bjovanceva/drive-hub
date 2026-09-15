@@ -15,10 +15,10 @@ useSeoMeta({ title: 'Messages | Drive Hub' })
 </template>
 
 <style scoped>
-.messages-index { display: flex; min-height: calc(100vh - 5rem); }
+.messages-index { display: flex; height: calc(100dvh - 5rem); min-height: 34rem; }
 .messages-index__empty { display: flex; min-width: 0; flex: 1; flex-direction: column; justify-content: center; padding: 3rem; background: #fff; }
 .messages-index__empty p { margin: 0; color: #667176; font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .messages-index__empty h1 { margin: .75rem 0; font-family: 'Barlow Condensed', sans-serif; font-size: clamp(3rem, 7vw, 6rem); line-height: .85; text-transform: uppercase; }
 .messages-index__empty span { color: #667176; }
-@media (max-width: 48rem) { .messages-index { flex-direction: column; } .messages-index__empty { min-height: 20rem; padding: 2rem 1.25rem; } }
+@media (max-width: 48rem) { .messages-index { height: auto; min-height: calc(100dvh - 5rem); flex-direction: column; } .messages-index > :deep(.chat-sidebar) { height: 42dvh; flex: 0 0 42dvh; max-height: 42dvh; } .messages-index__empty { min-height: 20rem; padding: 2rem 1.25rem; } }
 </style>

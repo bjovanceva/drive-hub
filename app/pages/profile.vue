@@ -6,7 +6,7 @@ useSeoMeta({ title: 'Account settings | Drive Hub' })
 
 const session = useUserSession()
 const { data, error, refresh } = await useFetch('/api/account/profile')
-const profile = reactive({ name: '', email: '', currentPassword: '' })
+const profile = reactive({ name: '', email: '', phone: '', currentPassword: '' })
 const passwords = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 const saving = ref<'profile' | 'password' | null>(null)
 const profileError = ref('')
@@ -26,6 +26,7 @@ watch(data, (value) => {
   if (!value) return
   profile.name = value.user.name
   profile.email = value.user.email
+  profile.phone = value.user.phone || ''
 }, { immediate: true })
 
 async function saveProfile() {
@@ -37,6 +38,7 @@ async function saveProfile() {
       body: {
         name: profile.name,
         email: profile.email,
+        phone: profile.phone,
         currentPassword: changingEmail.value ? profile.currentPassword : undefined
       }
     })
@@ -108,6 +110,11 @@ async function savePassword() {
             <label>
               Email address
               <input v-model.trim="profile.email" type="email" autocomplete="email" required>
+            </label>
+            <label>
+              Phone number (optional)
+              <input v-model.trim="profile.phone" type="tel" autocomplete="tel" maxlength="40">
+              <small>Shown to signed-in users in your contact popup.</small>
             </label>
             <label v-if="changingEmail">
               Current password

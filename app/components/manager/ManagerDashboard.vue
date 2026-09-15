@@ -509,12 +509,12 @@ async function submitReschedule(session: ManagerLessonItem) {
         <article v-for="application in pendingApplications" :key="application.id">
           <div class="dh-manager__applicant">
             <span>{{ application.user.name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase() }}</span>
-            <div><h3>{{ application.user.name }}</h3><a :href="`mailto:${application.user.email}`">{{ application.user.email }}</a></div>
+            <div><h3><UserName :user-id="application.user.id" :name="application.user.name" /></h3><a :href="`mailto:${application.user.email}`">{{ application.user.email }}</a></div>
           </div>
           <dl>
             <div><dt>Programme</dt><dd>{{ application.category.code || '—' }} · {{ application.category.name }}</dd></div>
             <div><dt>Applied</dt><dd>{{ new Date(application.startedAt).toLocaleDateString('en-GB') }}</dd></div>
-            <div><dt>Requested</dt><dd>{{ application.preferredInstructor?.name || 'No preference' }}</dd></div>
+            <div><dt>Requested</dt><dd><UserName :user-id="application.preferredInstructor?.id" :name="application.preferredInstructor?.name || 'No preference'" /></dd></div>
           </dl>
           <label>
             Assign instructor
@@ -537,7 +537,7 @@ async function submitReschedule(session: ManagerLessonItem) {
 
       <details v-if="decidedApplications.length" class="dh-manager__history">
         <summary>Recent decisions ({{ decidedApplications.length }})</summary>
-        <div><p v-for="application in decidedApplications" :key="application.id"><strong>{{ application.user.name }}</strong><span>{{ application.category.code || application.category.name }}</span><em :class="`is-${application.status.toLowerCase()}`">{{ application.status.toLowerCase() }}</em></p></div>
+        <div><p v-for="application in decidedApplications" :key="application.id"><strong><UserName :user-id="application.user.id" :name="application.user.name" /></strong><span>{{ application.category.code || application.category.name }}</span><em :class="`is-${application.status.toLowerCase()}`">{{ application.status.toLowerCase() }}</em></p></div>
       </details>
     </section>
 
@@ -550,7 +550,7 @@ async function submitReschedule(session: ManagerLessonItem) {
         <article v-for="student in dashboard.students" :key="student.id">
           <header class="dh-manager__student-header">
             <div class="dh-manager__student-identity">
-              <strong>{{ student.name }}</strong>
+              <strong><UserName :user-id="student.id" :name="student.name" /></strong>
               <a :href="`mailto:${student.email}`">{{ student.email }}</a>
             </div>
             <button type="button" class="is-danger" :disabled="!!busyKey" @click="removeStudent(student)">
@@ -564,7 +564,7 @@ async function submitReschedule(session: ManagerLessonItem) {
                 <span :class="`is-${training.status.toLowerCase()}`">{{ training.status.toLowerCase() }}</span>
               </div>
               <dl>
-                <div><dt>Instructor</dt><dd>{{ training.instructor?.name || 'Unassigned' }}</dd></div>
+                <div><dt>Instructor</dt><dd><UserName :user-id="training.instructor?.id" :name="training.instructor?.name || 'Unassigned'" /></dd></div>
                 <div><dt>Assigned vehicle</dt><dd>{{ training.vehicle ? `${training.vehicle.registration} · ${training.vehicle.brand} ${training.vehicle.model}` : 'Unassigned' }}</dd></div>
               </dl>
               <button type="button" class="is-primary" :disabled="!!busyKey" @click="openTrainingEditor(student, training)">Edit programme</button>
@@ -634,7 +634,7 @@ async function submitReschedule(session: ManagerLessonItem) {
           <small v-if="searchPending">Searching…</small>
           <div v-else-if="searchEmail.trim().length >= 2" class="dh-manager__results">
             <article v-for="candidate in candidates" :key="candidate.id">
-              <div><strong>{{ candidate.name }}</strong><span>{{ candidate.email }}</span></div>
+              <div><strong><UserName :user-id="candidate.id" :name="candidate.name" /></strong><span>{{ candidate.email }}</span></div>
               <button type="button" :disabled="!!busyKey" @click="addInstructor(candidate)">{{ busyKey === `add-${candidate.id}` ? 'Adding…' : 'Add instructor' }}</button>
             </article>
             <p v-if="!candidates.length">No unassigned users match that email.</p>
@@ -642,7 +642,7 @@ async function submitReschedule(session: ManagerLessonItem) {
         </div>
         <div v-if="dashboard.instructors.length" class="dh-manager__roster">
           <article v-for="instructor in dashboard.instructors" :key="instructor.id">
-            <div><strong>{{ instructor.name }}</strong><a :href="`mailto:${instructor.email}`">{{ instructor.email }}</a></div>
+            <div><strong><UserName :user-id="instructor.id" :name="instructor.name" /></strong><a :href="`mailto:${instructor.email}`">{{ instructor.email }}</a></div>
             <span>{{ instructor.activeStudents }}/3 active students</span>
             <small>{{ instructor.vehicle.map(vehicle => vehicle.registration).join(', ') || 'No assigned vehicle' }}</small>
             <button type="button" :disabled="!!busyKey" @click="removeInstructor(instructor.id, instructor.name)">{{ busyKey === `remove-${instructor.id}` ? 'Removing…' : 'Remove' }}</button>
@@ -735,12 +735,12 @@ async function submitReschedule(session: ManagerLessonItem) {
               <small>{{ session.lesson.durationMinutes }} minutes</small>
             </time>
             <div class="dh-manager__lesson-person">
-              <strong>{{ session.student.name }}</strong>
+              <strong><UserName :user-id="session.student.id" :name="session.student.name" /></strong>
               <span>{{ session.student.email }}</span>
             </div>
             <div class="dh-manager__lesson-name">
               <strong>{{ session.category.code || session.category.name }} · {{ session.lesson.title }}</strong>
-              <span>{{ session.lesson.type.toLowerCase() }} · {{ session.instructor?.name || 'No instructor' }}<template v-if="session.vehicle"> · {{ session.vehicle.registration }}</template></span>
+              <span>{{ session.lesson.type.toLowerCase() }} · <UserName :user-id="session.instructor?.id" :name="session.instructor?.name || 'No instructor'" /><template v-if="session.vehicle"> · {{ session.vehicle.registration }}</template></span>
             </div>
             <span class="dh-manager__lesson-status">{{ session.status.toLowerCase() }}</span>
             <div v-if="session.status === 'SCHEDULED'" class="dh-manager__lesson-actions">
@@ -787,7 +787,7 @@ async function submitReschedule(session: ManagerLessonItem) {
           <header>
             <div>
               <p>Student programme</p>
-              <h2 id="manager-programme-editor-title">Edit {{ editingStudent.name }}</h2>
+              <h2 id="manager-programme-editor-title">Edit <UserName :user-id="editingStudent.id" :name="editingStudent.name" /></h2>
             </div>
             <button type="button" aria-label="Close programme editor" :disabled="busyKey.startsWith('training-')" @click="closeTrainingEditor">×</button>
           </header>

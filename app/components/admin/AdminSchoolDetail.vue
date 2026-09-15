@@ -33,7 +33,7 @@ const schoolVehicles = computed(() =>
     <div class="dh-admin-school-summary">
       <div>
         <span>School manager</span>
-        <strong>{{ userName(school.managerId) }}</strong>
+        <strong><UserName :user-id="school.managerId" :name="userName(school.managerId)" /></strong>
         <button v-if="school.managerId" @click="emit('edit', 'users', school.managerId)">
           Edit manager
         </button>
@@ -101,7 +101,7 @@ const schoolVehicles = computed(() =>
               <strong>{{ vehicle.registration }}</strong>
             </td>
             <td>{{ vehicle.brand }} {{ vehicle.model }} · {{ vehicle.year }}</td>
-            <td>{{ userName(vehicle.instructorId) }}</td>
+            <td><UserName :user-id="vehicle.instructorId" :name="userName(vehicle.instructorId)" /></td>
             <td>
               <div class="dh-admin-actions">
                 <button

@@ -94,7 +94,7 @@ export class AuthService {
     return user
   }
 
-  async updateProfile(id: number, command: { name: string, email: string, currentPassword?: string }) {
+  async updateProfile(id: number, command: { name: string, email: string, phone?: string | null, currentPassword?: string }) {
     const user = await this.getOrdinaryUserForSettings(id)
     const email = command.email.trim().toLowerCase()
 
@@ -103,10 +103,18 @@ export class AuthService {
     }
 
     try {
-      return this.toSessionUser(await this.users.updateOrdinaryUser(id, {
+      const updatedUser = await this.users.updateOrdinaryUser(id, {
         name: command.name.trim(),
         email
-      }))
+      })
+      const existingContact = command.phone === undefined
+        ? await this.users.findContactById(id)
+        : null
+      const phone = command.phone === undefined
+        ? existingContact?.phone ?? null
+        : command.phone?.trim() || null
+      if (command.phone !== undefined) await this.users.updatePhone(id, phone)
+      return { ...this.toSessionUser(updatedUser), phone }
     } catch (error) {
       if (this.isUniqueConstraintError(error)) {
         throw createError({ statusCode: 409, statusMessage: 'An account with this email already exists' })

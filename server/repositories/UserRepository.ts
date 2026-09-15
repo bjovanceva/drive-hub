@@ -60,6 +60,27 @@ export class UserRepository {
     })
   }
 
+  async findContactById(id: number) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true }
+    })
+    if (!user) return null
+
+    try {
+      const contacts = await prisma.$queryRaw<Array<{ phone: string | null }>>
+        `SELECT "phone" FROM "User" WHERE "id" = ${id} LIMIT 1`
+      return { ...user, phone: contacts[0]?.phone ?? null }
+    } catch {
+      // Email remains available when the current database has not added User.phone yet.
+      return { ...user, phone: null }
+    }
+  }
+
+  async updatePhone(id: number, phone: string | null) {
+    await prisma.$executeRaw`UPDATE "User" SET "phone" = ${phone} WHERE "id" = ${id}`
+  }
+
   async findInstructorsBySchoolId(schoolId: number) {
     return prisma.user.findMany({
       where: { instructorSchoolId: schoolId },
