@@ -1,7 +1,9 @@
+# Public deployment configuration: only this file and a private environment file
+# are needed on the VM. Publish both Dockerfile targets before deploying.
 x-database-environment: &database-environment
-  POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-  POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+  POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in the production environment file}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the production environment file}
+  POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in the production environment file}
 
 services:
   postgres:
@@ -18,9 +20,7 @@ services:
       start_period: 10s
 
   migrate:
-    build:
-      context: .
-      target: tooling
+    image: ${TOOLING_IMAGE:?Set TOOLING_IMAGE to the published tooling image and version}
     restart: "no"
     init: true
     environment: *database-environment
@@ -30,14 +30,12 @@ services:
         condition: service_healthy
 
   app:
-    build:
-      context: .
-      target: runtime
+    image: ${APP_IMAGE:?Set APP_IMAGE to the published application image and version}
     restart: unless-stopped
     init: true
     environment:
       <<: *database-environment
-      NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?Set a random session secret of at least 32 characters in .env}
+      NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?Set a random session secret of at least 32 characters in the production environment file}
       NITRO_HOST: 0.0.0.0
       NITRO_PORT: "3000"
     ports:
