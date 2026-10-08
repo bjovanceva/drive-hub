@@ -191,7 +191,7 @@ async function startConversation() {
     <section class="chat-sidebar__conversations" aria-labelledby="your-chats-title">
       <div class="chat-sidebar__list-heading">
         <h2 id="your-chats-title">Your conversations</h2>
-        <button type="button" title="Refresh conversations" @click="refresh">Refresh</button>
+        <button type="button" title="Refresh conversations" @click="refresh()">Refresh</button>
       </div>
       <p v-if="conversationsError" class="chat-sidebar__empty">Conversations could not be loaded.</p>
       <p v-else-if="!conversations?.length" class="chat-sidebar__empty">No conversations yet.</p>

@@ -16,13 +16,16 @@ export function useAuth() {
   const mutationStatus = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
   const mutationError = shallowRef<unknown>(null)
 
-  async function runMutation<T>(operation: () => Promise<T>) {
+  async function runMutation<T>(operation: () => Promise<T>, missingSessionMessage?: string) {
     mutationStatus.value = 'pending'
     mutationError.value = null
 
     try {
       const result = await operation()
       await session.fetch()
+      if (missingSessionMessage && !session.loggedIn.value) {
+        throw new Error(missingSessionMessage)
+      }
       mutationStatus.value = 'success'
       return result
     } catch (error) {
@@ -36,14 +39,14 @@ export function useAuth() {
     return runMutation(() => $fetch('/api/auth/login', {
       method: 'POST',
       body: input
-    }))
+    }), 'Your sign-in session could not be saved. Allow cookies and use the configured app address, then try again.')
   }
 
   function register(input: RegisterInput) {
     return runMutation(() => $fetch('/api/auth/register', {
       method: 'POST',
       body: input
-    }))
+    }), 'Your account was created, but the sign-in session could not be saved. Allow cookies, open the configured app address, and sign in with your new account.')
   }
 
   function logout() {

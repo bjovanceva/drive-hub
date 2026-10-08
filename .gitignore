@@ -25,3 +25,6 @@ logs
 !.env.production.example
 
 /app/generated/prisma
+
+# Database backups contain private application data.
+/backups/

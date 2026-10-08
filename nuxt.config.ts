@@ -10,8 +10,11 @@ export default defineNuxtConfig({
   },
   devtools: { enabled: true },
   runtimeConfig: {
+    appOrigin: '',
+    trustedProxyCidrs: '',
     session: {
       password: '',
+      cookie: { secure: true },
       maxAge: 60 * 60 * 24 * 7
     }
   },

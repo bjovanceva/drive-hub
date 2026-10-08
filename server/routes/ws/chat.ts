@@ -4,7 +4,10 @@ import { registerChatPeer, unregisterChatPeer, requireChatSession } from '../../
 export default defineWebSocketHandler({
   async upgrade(request) {
     const origin = request.headers.get('origin')
-    if (!origin || origin !== new URL(request.url).origin) {
+    // A configured public origin works for HTTPS terminated at shared Nginx
+    // without trusting forwarded headers on a WebSocket upgrade request.
+    const expectedOrigin = useRuntimeConfig().appOrigin || new URL(request.url).origin
+    if (!origin || origin !== expectedOrigin) {
       throw new Response('Invalid origin', { status: 403 })
     }
     try {

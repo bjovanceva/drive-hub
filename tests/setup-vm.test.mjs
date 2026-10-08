@@ -55,7 +55,7 @@ process.exit(0)
   return { dir, envFile, run, commands, readConfig }
 }
 
-const images = ['--app-image', 'example/drive-hub-app:1.0.0', '--tooling-image', 'example/drive-hub-tooling:1.0.0']
+const images = ['--domain', 'drivehub.example.com', '--trusted-proxies', '172.30.0.2/32', '--app-image', 'example/drive-hub-app:1.0.0', '--tooling-image', 'example/drive-hub-tooling:1.0.0']
 const composeTest = (name, fn) => test(name, { skip: !realDocker && 'Docker Compose CLI is needed; no daemon is used' }, fn)
 
 test('help is available without provisioning or a Linux host', () => {
@@ -66,7 +66,7 @@ test('help is available without provisioning or a Linux host', () => {
 
 composeTest('first deployment generates private secrets and waits for a healthy stack', t => {
   const setup = fixture(t)
-  const result = setup.run([...images, '--port', '8080', '--bind-address', '127.0.0.1'])
+  const result = setup.run(images)
   assert.equal(result.status, 0, result.stderr)
   const config = setup.readConfig()
   const values = config.services.app.environment
@@ -74,12 +74,20 @@ composeTest('first deployment generates private secrets and waits for a healthy 
   assert.match(values.NUXT_SESSION_PASSWORD, /^[0-9a-f]{64}$/)
   assert.notEqual(values.POSTGRES_PASSWORD, values.NUXT_SESSION_PASSWORD)
   assert.equal(statSync(setup.envFile).mode & 0o777, 0o600)
-  assert.equal(config.services.app.ports[0].published, '8080')
-  assert.equal(config.services.app.ports[0].host_ip, '127.0.0.1')
+  assert.equal(config.name, 'drive-hub')
+  for (const service of Object.values(config.services)) assert.equal(service.ports, undefined)
+  assert.deepEqual(config.services.app.networks['web-proxy'].aliases, ['nuxt-web'])
+  assert.deepEqual(Object.keys(config.services.postgres.networks), ['default'])
+  assert.equal(config.networks.default.internal, true)
+  assert.equal(config.networks['web-proxy'].external, true)
+  assert.equal(config.services.app.environment.NUXT_APP_ORIGIN, 'http://drivehub.example.com')
+  assert.equal(config.services.app.environment.NUXT_SESSION_COOKIE_SECURE, 'false')
+  assert.equal(config.services.app.environment.NUXT_TRUSTED_PROXY_CIDRS, '172.30.0.2/32')
+  assert.equal(config.services.app.logging.options['max-size'], '10m')
   assert.ok(setup.commands().some(args => args.includes('pull')))
   assert.ok(setup.commands().some(args => args.includes('up') && args.includes('--no-build') && args.includes('--wait')))
   assert.ok(!result.stdout.includes(values.POSTGRES_PASSWORD))
-  assert.match(result.stdout, /Drive Hub is healthy/)
+  assert.match(result.stdout, /healthy internally/)
 })
 
 composeTest('reruns preserve credentials, comments, and unrelated configuration', t => {
@@ -153,6 +161,49 @@ composeTest('optional registry login precedes pulling and administrator creation
   assert.equal(result.status, 0, result.stderr)
   const commands = setup.commands()
   assert.ok(commands.findIndex(args => args.includes('login')) < commands.findIndex(args => args.includes('pull')))
-  assert.ok(commands.findIndex(args => args.includes('up')) < commands.findIndex(args => args.includes('run')))
+  assert.ok(commands.findIndex(args => args.includes('up') && args.includes('app')) < commands.findIndex(args => args.includes('run')))
   assert.ok(commands.some(args => args.includes('scripts/admin.mjs') && args.includes('admin@example.com')))
+})
+
+composeTest('migrations are explicit and complete before the application starts', t => {
+  const setup = fixture(t)
+  assert.equal(setup.run(images).status, 0)
+  assert.ok(!setup.commands().some(args => args.includes('run') && args.at(-1) === 'migrate'))
+  const result = setup.run(['--migrate'])
+  assert.equal(result.status, 0, result.stderr)
+  const commands = setup.commands().slice(setup.commands().findIndex(args => args.includes('run') && args.at(-1) === 'migrate'))
+  assert.equal(commands[0].at(-1), 'migrate')
+  assert.ok(commands.slice(1).some(args => args.includes('up') && args.includes('app')))
+})
+
+composeTest('migration failure preserves configuration and never starts a new app', t => {
+  const setup = fixture(t)
+  const result = setup.run([...images, '--migrate'], { SETUP_FAIL_COMMAND: 'run' })
+  assert.notEqual(result.status, 0)
+  assert.ok(!setup.commands().some(args => args.includes('up') && args.includes('app')))
+  assert.equal(existsSync(setup.envFile), true)
+})
+
+composeTest('HTTPS transition changes the origin and cookie setting while preserving secrets', t => {
+  const setup = fixture(t)
+  assert.equal(setup.run(images).status, 0)
+  const original = setup.readConfig().services.app.environment
+  const result = setup.run(['--https'])
+  assert.equal(result.status, 0, result.stderr)
+  const values = setup.readConfig().services.app.environment
+  assert.equal(values.NUXT_APP_ORIGIN, 'https://drivehub.example.com')
+  assert.equal(values.NUXT_SESSION_COOKIE_SECURE, 'true')
+  assert.equal(values.NUXT_SESSION_PASSWORD, original.NUXT_SESSION_PASSWORD)
+  assert.equal(values.POSTGRES_PASSWORD, original.POSTGRES_PASSWORD)
+})
+
+composeTest('invalid proxy trust and missing shared network fail before deployment', t => {
+  const setup = fixture(t)
+  const result = setup.run([...images, '--trusted-proxies', '0.0.0.0/0'])
+  assert.notEqual(result.status, 0)
+  assert.equal(existsSync(setup.envFile), false)
+  const missing = setup.run(images, { SETUP_FAIL_COMMAND: 'inspect' })
+  assert.notEqual(missing.status, 0)
+  assert.match(missing.stderr, /web-proxy network is missing/)
+  assert.ok(!setup.commands().some(args => args.includes('up')))
 })

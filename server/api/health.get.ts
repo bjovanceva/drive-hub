@@ -5,6 +5,8 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Cache-Control', 'no-store')
   try {
     await prisma.$queryRaw`SELECT 1`
+    // A fresh database connection alone is not enough: migrations must exist.
+    await prisma.user.findFirst({ select: { id: true } })
     return { status: 'ok' }
   } catch {
     throw createError({ statusCode: 503, statusMessage: 'Service unavailable' })

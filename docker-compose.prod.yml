@@ -1,15 +1,25 @@
-# Public deployment configuration: only this file and a private environment file
-# are needed on the VM. Publish both Dockerfile targets before deploying.
+# Shared Nginx reaches nuxt-web:3000 on the existing web-proxy network.
+# No ports are published by this project. Migrations are an explicit tools step.
+name: drive-hub
+
 x-database-environment: &database-environment
   POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in the production environment file}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the production environment file}
   POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in the production environment file}
 
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:17
     restart: unless-stopped
+    stop_grace_period: 60s
     environment: *database-environment
+    logging: *logging
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,8 +31,10 @@ services:
 
   migrate:
     image: ${TOOLING_IMAGE:?Set TOOLING_IMAGE to the published tooling image and version}
+    profiles: [tools]
     restart: "no"
     init: true
+    logging: *logging
     environment: *database-environment
     command: ["./node_modules/.bin/prisma", "migrate", "deploy"]
     depends_on:
@@ -33,18 +45,24 @@ services:
     image: ${APP_IMAGE:?Set APP_IMAGE to the published application image and version}
     restart: unless-stopped
     init: true
+    stop_grace_period: 30s
+    logging: *logging
     environment:
       <<: *database-environment
-      NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?Set a random session secret of at least 32 characters in the production environment file}
+      NODE_ENV: production
+      NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?Set a random session secret of at least 32 characters}
+      NUXT_SESSION_COOKIE_SECURE: ${NUXT_SESSION_COOKIE_SECURE:-true}
+      NUXT_APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN to the public origin, such as https://drivehub.example.com}
+      NUXT_TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:?Set TRUSTED_PROXY_CIDRS to the shared Nginx IP or trusted network range}
       NITRO_HOST: 0.0.0.0
       NITRO_PORT: "3000"
-    ports:
-      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-3000}:3000"
+    networks:
+      default: {}
+      web-proxy:
+        aliases: [drive-hub-web]
     depends_on:
       postgres:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
@@ -54,3 +72,10 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  default:
+    internal: true
+  web-proxy:
+    external: true
+    name: web-proxy

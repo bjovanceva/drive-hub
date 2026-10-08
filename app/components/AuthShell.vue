@@ -54,6 +54,9 @@ defineProps<{
 :deep(.dh-auth-form label) { display: flex; flex-direction: column; gap: 0.5rem; color: var(--dh-color-text-secondary); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.05rem; text-transform: uppercase; }
 :deep(.dh-auth-form input) { width: 100%; height: 3.5rem; padding: 0 1rem; border: 1px solid var(--dh-color-border-strong); border-radius: 0; background: #fff; color: var(--dh-color-text-primary); font: inherit; }
 :deep(.dh-auth-form input:focus-visible) { outline: 3px solid var(--dh-color-bg-status); outline-offset: 2px; }
+:deep(.dh-auth-form input[aria-invalid="true"]) { border-color: #8f2619; }
+:deep(.dh-auth-form__field-error), :deep(.dh-auth-form__hint) { font-size: 0.8125rem; line-height: 1.5; font-weight: 400; letter-spacing: normal; text-transform: none; }
+:deep(.dh-auth-form__field-error) { color: #8f2619; }
 :deep(.dh-auth-form__error) { margin: 0; padding: 0.875rem 1rem; border-left: 0.3rem solid var(--dh-color-bg-accent); background: #fff0ed; color: #8f2619; font-size: 0.8125rem; line-height: 1.5; }
 :deep(.dh-auth-form button) { min-height: 3.75rem; border: 1px solid var(--dh-color-border-strong); border-radius: 0; background: var(--dh-color-bg-accent); color: #fff; font-weight: 800; letter-spacing: 0.04rem; text-transform: uppercase; cursor: pointer; }
 :deep(.dh-auth-form button:hover) { background: var(--dh-color-bg-accent-hover); }

@@ -26,6 +26,7 @@ function fixture(role = 'USER') {
   let writes = 0
   class UserRepository {
     async findForSession() { return record }
+    async findContactById() { return { phone: record.phone ?? null } }
     async updateOrdinaryUser(_id, data) {
       if (data.email === 'taken@example.test') throw { code: 'P2002' }
       writes++

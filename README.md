@@ -131,7 +131,10 @@ Configure these values in `.env`:
 | `SEED_DEFAULT_PASSWORD`    | No       | Password assigned to development accounts; defaults to `DriveHub123!`. |
 | `ALLOW_PRODUCTION_SEED`    | No       | Set to `true` only when deliberately allowing a seed in production.    |
 | `DRIVE_HUB_ADMIN_PASSWORD` | No       | Password supplied to non-interactive admin CLI commands.               |
-| `APP_PORT`                | No       | Published application port for Compose; defaults to `3000`.            |
+| `APP_ORIGIN`              | Production | Public HTTP(S) origin behind shared Nginx.                          |
+| `TRUSTED_PROXY_CIDRS`      | Production | Shared Nginx IPs or trusted CIDRs, comma-separated.                  |
+| `NUXT_SESSION_COOKIE_SECURE` | Production | `false` for HTTP starter tests; `true` after proxy HTTPS.          |
+| `APP_PORT`                | No       | Local build-based Compose port; defaults to `3000`. Production publishes none.            |
 | `APP_BIND_ADDRESS`        | No       | Interface for the published app port; defaults to `0.0.0.0`.           |
 | `POSTGRES_PORT`           | No       | Local database port in the development override; defaults to `5432`.   |
 
@@ -483,87 +486,33 @@ stored in an initialized database.
 
 ### Deploy published images on a VM
 
-`docker-compose.prod.yml` is a standalone public deployment file. It uses
-published images and requires no source checkout, Dockerfile, or local build on
-the VM. Share this file and `.env.production.example`; keep the real
-`.env.production` private.
+The production stack is prepared for a separate shared Nginx proxy on a VM with
+multiple applications. It joins the existing `web-proxy` network as
+`nuxt-web:3000`; the app, database, and migration tool publish no host ports.
+Nginx owns the domain, public ports, and HTTPS certificates. The production
+project name is explicitly `drive-hub` and migrations are an explicit tools step.
 
-First publish the `runtime` and `tooling` targets from the same source revision.
-Replace `your-dockerhub-user` with your Docker Hub namespace. This example builds
-for an Intel/AMD Linux VM; use `linux/arm64` for an ARM VM, or
-`linux/amd64,linux/arm64` to publish both architectures:
+See [docs/deployment.md](docs/deployment.md) for CPU architecture checks, image
+build/publish commands, private runtime configuration, trusted proxy addresses,
+HTTP smoke testing, the HTTPS transition, backups, updates, and rollback.
 
-```bash
-docker login
-docker buildx build --platform linux/amd64 --target runtime \
-  -t your-dockerhub-user/drive-hub-app:1.0.0 --push .
-docker buildx build --platform linux/amd64 --target tooling \
-  -t your-dockerhub-user/drive-hub-tooling:1.0.0 --push .
-```
-
-For automatic Ubuntu VM setup, copy `setup-vm.sh` and `docker-compose.prod.yml`
-into a dedicated directory on the VM. Run:
+After publishing both images and preparing the shared proxy/network, initial
+setup on Ubuntu can use:
 
 ```bash
 bash setup-vm.sh \
-  --app-image your-dockerhub-user/drive-hub-app:1.0.0 \
-  --tooling-image your-dockerhub-user/drive-hub-tooling:1.0.0
+  --app-image your-dockerhub-user/drive-hub-app:1.0.1 \
+  --tooling-image your-dockerhub-user/drive-hub-tooling:1.0.1 \
+  --domain drivehub.example.com --trusted-proxies 172.30.0.2/32 \
+  --http --migrate
 ```
 
-The script installs Docker Engine, the Compose plugin, and Python 3 if missing,
-using Docker's official Ubuntu package repository. It requests sudo privileges
-when needed, starts Docker, generates missing database and session secrets, saves
-`.env.production` with permissions `600`, pulls the images, and waits for the
-application to become healthy after migrations. It preserves existing secrets
-and data on reruns. It also runs on other Linux distributions when Docker,
-Compose, and Python 3 are already installed.
-
-Omit the image arguments to be prompted interactively, or to reuse image
-references already saved in `.env.production`. Add `--login` for private image
-repositories, `--port 8080` to change the published port, or
-`--bind-address 127.0.0.1` for a proxy on the VM. Add
-`--admin-email admin@example.com` to create an administrator after startup; its
-password is prompted for with hidden input. Use `bash setup-vm.sh --help` for
-all options. The script starts the app with an empty schema on a new database;
-import your application data and configure HTTPS/networking as described above.
-
-For manual setup, install Docker Engine and Docker Compose. Copy the production Compose
-file and environment template into a dedicated directory, then create the private
-configuration:
-
-```bash
-cp .env.production.example .env.production
-chmod 600 .env.production
-```
-
-Set `APP_IMAGE` and `TOOLING_IMAGE` to the published versioned image references,
-and fill in `POSTGRES_PASSWORD` and `NUXT_SESSION_PASSWORD`. Use separate random
-secrets generated with `openssl rand -hex 32`. Configure the other PostgreSQL and
-port values as needed; no `DATABASE_URL` is required for this deployment.
-
-Pull and start the services using only the production file:
-
-```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml pull
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d
-docker compose --env-file .env.production -f docker-compose.prod.yml ps -a
-```
-
-For private image repositories, run `docker login` on the VM before pulling.
-Database readiness checks, automatic migrations, persistent storage, and the app
-health check behave as in the build-based stack. Initial data and HTTPS proxy
-configuration still need to be supplied as described above. Create the first
-administrator with:
-
-```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml \
-  run --rm --no-deps migrate node scripts/admin.mjs create \
-  --email admin@example.com --name "Administrator"
-```
-
-For a new release, publish both images with a new version, update both image
-references in `.env.production`, then repeat `pull` and `up -d`. Keep the deployment
-directory and Compose project name stable so releases reuse the database volume.
+Replace the domain and proxy address with real values. The script installs
+missing prerequisites, generates absent secrets, and preserves existing private
+configuration. `--migrate` applies migrations explicitly; back up existing data
+first. Without it, migrations do not run. Once shared Nginx serves HTTPS, rerun
+with `--https` to switch the origin and Secure cookies together. No per-app
+Cloudflare token or certificate proxy is needed. Use `--help` for all options.
 
 For deployments without Docker, generate the Prisma client, apply migrations,
 build the app, and run `node .output/server/index.mjs` with production

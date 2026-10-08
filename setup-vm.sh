@@ -10,8 +10,11 @@ Usage: bash setup-vm.sh [options]
   --app-image IMAGE       Published runtime image, including a version or digest
   --tooling-image IMAGE   Published tooling image from the same release
   --env-file PATH         Private configuration (default: .env.production beside this script)
-  --port PORT             Published app port (default on first setup: 3000)
-  --bind-address ADDRESS  Published interface (default on first setup: 0.0.0.0)
+  --domain DOMAIN         Public domain; prompts if APP_ORIGIN is missing
+  --trusted-proxies CIDRS  Comma-separated shared Nginx IPs or CIDRs
+  --https                 Use https:// and Secure cookies (after shared Nginx TLS)
+  --http                  Use http:// and HTTP cookies for starter smoke tests
+  --migrate               Apply migrations before starting the app; back up first
   --login                 Run interactive docker login before pulling images
   --admin-email EMAIL     Create an administrator; prompts for its password
   --help                  Show this help
@@ -19,6 +22,10 @@ Usage: bash setup-vm.sh [options]
 Missing image names are prompted for on an interactive terminal. Database and
 session secrets are generated only when absent. Existing secrets are preserved.
 Copy docker-compose.prod.yml beside this script before running it.
+The shared Nginx and external web-proxy network must already exist. This script
+publishes no ports and does not install certificates or modify the shared proxy.
+Migrations run ONLY with --migrate. Existing production databases need a backup
+before that option is used. See docs/deployment.md.
 HELP
 }
 
@@ -36,22 +43,27 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 env_file="$script_dir/.env.production"
 app_image=''
 tooling_image=''
-app_port=''
-bind_address=''
+app_domain=''
+trusted_proxies=''
+app_scheme=''
+run_migrations=false
 admin_email=''
 registry_login=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help|-h) usage; exit 0 ;;
     --login) registry_login=true; shift ;;
-    --app-image|--tooling-image|--env-file|--port|--bind-address|--admin-email)
+    --migrate) run_migrations=true; shift ;;
+    --https) app_scheme=https; shift ;;
+    --http) app_scheme=http; shift ;;
+    --app-image|--tooling-image|--env-file|--domain|--trusted-proxies|--admin-email)
       [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || fail "$1 requires a value."
       case "$1" in
         --app-image) app_image=$2 ;;
         --tooling-image) tooling_image=$2 ;;
         --env-file) env_file=$2 ;;
-        --port) app_port=$2 ;;
-        --bind-address) bind_address=$2 ;;
+        --domain) app_domain=$2 ;;
+        --trusted-proxies) trusted_proxies=$2 ;;
         --admin-email) admin_email=$2 ;;
       esac
       shift 2 ;;
@@ -66,7 +78,7 @@ env_file="$(cd -- "$(dirname -- "$env_file")" && pwd)/$(basename -- "$env_file")
 [[ ! -L "$env_file" ]] || fail 'Use a regular environment file, not a symbolic link.'
 
 # Keep the production file authoritative even if development values were exported.
-unset APP_IMAGE TOOLING_IMAGE POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB NUXT_SESSION_PASSWORD APP_PORT APP_BIND_ADDRESS
+unset APP_IMAGE TOOLING_IMAGE POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB NUXT_SESSION_PASSWORD APP_ORIGIN TRUSTED_PROXY_CIDRS NUXT_SESSION_COOKIE_SECURE
 
 need_engine=false
 need_compose=false
@@ -124,7 +136,8 @@ fi
 docker compose version >/dev/null 2>&1 || fail 'Docker Compose is still unavailable after installation.'
 
 # Let Compose parse its own dotenv syntax. Never execute the private .env file.
-configured_port=$(python3 - "$env_file" "$app_image" "$tooling_image" "$app_port" "$bind_address" <<'PY'
+configured_origin=$(python3 - "$env_file" "$app_image" "$tooling_image" "$app_domain" "$trusted_proxies" "$app_scheme" <<'PY'
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -133,9 +146,10 @@ import secrets
 import subprocess
 import sys
 import tempfile
+from urllib.parse import urlsplit
 
 path = Path(sys.argv[1])
-keys = ('APP_IMAGE', 'TOOLING_IMAGE', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'NUXT_SESSION_PASSWORD', 'APP_PORT', 'APP_BIND_ADDRESS')
+keys = ('APP_IMAGE', 'TOOLING_IMAGE', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'NUXT_SESSION_PASSWORD', 'APP_ORIGIN', 'TRUSTED_PROXY_CIDRS', 'NUXT_SESSION_COOKIE_SECURE')
 original = path.read_text() if path.exists() else ''
 with tempfile.TemporaryDirectory(prefix='drivehub-config-') as scratch:
     scratch = Path(scratch)
@@ -159,9 +173,9 @@ def prompt(label):
             terminal.flush()
             return terminal.readline().strip()
     except OSError:
-        sys.exit('Image references are missing. Supply --app-image and --tooling-image or set them in the production environment file.')
+        sys.exit('A required value is missing. Supply the image references, --domain and --trusted-proxies or set them in the production environment file.')
 
-for key, override in zip(('APP_IMAGE', 'TOOLING_IMAGE', 'APP_PORT', 'APP_BIND_ADDRESS'), sys.argv[2:]):
+for key, override in zip(('APP_IMAGE', 'TOOLING_IMAGE'), sys.argv[2:4]):
     if override:
         values[key] = override
 for key, label in (('APP_IMAGE', 'Published app image (namespace/drive-hub-app:version)'), ('TOOLING_IMAGE', 'Published tooling image (namespace/drive-hub-tooling:version)')):
@@ -179,12 +193,41 @@ values['POSTGRES_PASSWORD'] = values['POSTGRES_PASSWORD'] or secrets.token_hex(3
 values['NUXT_SESSION_PASSWORD'] = values['NUXT_SESSION_PASSWORD'] or secrets.token_hex(32)
 if len(values['NUXT_SESSION_PASSWORD']) < 32:
     sys.exit('Existing NUXT_SESSION_PASSWORD is too short; set at least 32 characters. It has not been changed.')
-values['APP_PORT'] = values['APP_PORT'] or '3000'
-if not values['APP_PORT'].isdigit() or not 1 <= int(values['APP_PORT']) <= 65535:
-    sys.exit('APP_PORT must be a number between 1 and 65535.')
-values['APP_BIND_ADDRESS'] = values['APP_BIND_ADDRESS'] or '0.0.0.0'
-if not re.fullmatch(r'[a-zA-Z0-9.:-]+', values['APP_BIND_ADDRESS']):
-    sys.exit('APP_BIND_ADDRESS must be a valid interface address.')
+domain, trusted_override, scheme_override = sys.argv[4:7]
+if domain:
+    if not re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?', domain) or '.' not in domain:
+        sys.exit('--domain must be a domain name without a scheme, path or port.')
+    scheme = scheme_override or (urlsplit(values['APP_ORIGIN']).scheme if values['APP_ORIGIN'] else 'http')
+    values['APP_ORIGIN'] = f'{scheme}://{domain.lower()}'
+if not values['APP_ORIGIN']:
+    values['APP_ORIGIN'] = ('https' if scheme_override == 'https' else 'http') + '://' + prompt('Public domain (for example drivehub.example.com)')
+origin = urlsplit(values['APP_ORIGIN'])
+if scheme_override:
+    values['APP_ORIGIN'] = scheme_override + '://' + origin.netloc
+    origin = urlsplit(values['APP_ORIGIN'])
+if origin.scheme not in ('http', 'https') or not origin.hostname or origin.username or origin.password or origin.path not in ('', '/') or origin.query or origin.fragment:
+    sys.exit('APP_ORIGIN must be a public HTTP(S) origin without a path or credentials.')
+try:
+    origin.port
+except ValueError:
+    sys.exit('APP_ORIGIN contains an invalid port.')
+values['APP_ORIGIN'] = origin.scheme + '://' + origin.netloc.lower()
+if trusted_override:
+    values['TRUSTED_PROXY_CIDRS'] = trusted_override
+if not values['TRUSTED_PROXY_CIDRS']:
+    values['TRUSTED_PROXY_CIDRS'] = prompt('Trusted shared Nginx IP or CIDR (from docker inspect)')
+try:
+    for cidr in values['TRUSTED_PROXY_CIDRS'].split(','):
+        network = ipaddress.ip_network(cidr.strip(), strict=False)
+        if network.prefixlen == 0:
+            raise ValueError('Do not trust every address')
+except ValueError:
+    sys.exit('TRUSTED_PROXY_CIDRS must list valid IPs/CIDRs; do not use 0.0.0.0/0 or ::/0.')
+expected_secure = 'true' if origin.scheme == 'https' else 'false'
+if scheme_override or not values['NUXT_SESSION_COOKIE_SECURE']:
+    values['NUXT_SESSION_COOKIE_SECURE'] = expected_secure
+if values['NUXT_SESSION_COOKIE_SECURE'] != expected_secure:
+    sys.exit('NUXT_SESSION_COOKIE_SECURE must be true for HTTPS or false for the HTTP starter. Use --https or --http to switch both settings together.')
 
 # Preserve existing assignments, comments, and unrelated settings. Only replace
 # explicitly overridden fields or empty values; secrets are never rotated here.
@@ -212,7 +255,7 @@ if updated != original or not path.exists():
     os.replace(replacement, path)
 else:
     os.chmod(path, 0o600)
-print(values['APP_PORT'])
+print(values['APP_ORIGIN'])
 PY
 )
 printf 'Production configuration ready: %s (permissions 600).\n' "$env_file"
@@ -234,19 +277,37 @@ fi
 
 compose=("${docker_command[@]}" compose --project-directory "$script_dir" --env-file "$env_file" -f "$script_dir/docker-compose.prod.yml")
 "${compose[@]}" config --quiet
+"${docker_command[@]}" network inspect web-proxy >/dev/null 2>&1 || fail 'External web-proxy network is missing. Have the shared-proxy operator create it; this script will not change shared infrastructure.'
 if $registry_login; then
   "${docker_command[@]}" login
 fi
 printf 'Pulling published images...\n'
-"${compose[@]}" pull
-printf 'Starting PostgreSQL, applying migrations, and waiting for the app...\n'
-if ! "${compose[@]}" up -d --no-build --wait --wait-timeout 180; then
+"${compose[@]}" pull app postgres migrate
+printf 'Starting PostgreSQL...\n'
+if ! "${compose[@]}" up -d --no-build --wait --wait-timeout 120 postgres; then
   "${compose[@]}" ps -a
-  fail 'Startup failed. Inspect app and migrate logs with the production Compose file; the configuration and database have been preserved.'
+  fail 'Startup failed: PostgreSQL is not healthy. Inspect its logs before continuing.'
+fi
+if $run_migrations; then
+  "${compose[@]}" stop app
+  printf 'Applying explicitly requested migrations...\n'
+  if ! "${compose[@]}" run --rm migrate; then
+    fail 'Migrations failed. The app remains stopped; inspect the migration error before restarting it.'
+  fi
+else
+  printf 'Migrations were not requested. Existing schema must already be current.\n'
+fi
+printf 'Starting the app and waiting for health...\n'
+if ! "${compose[@]}" up -d --no-build --wait --wait-timeout 180 app; then
+  "${compose[@]}" ps -a
+  fail 'Startup failed. Inspect app logs; for a new database apply migrations with --migrate. Configuration and data have been preserved.'
 fi
 if [[ -n "$admin_email" ]]; then
   "${compose[@]}" run --rm --no-deps migrate node scripts/admin.mjs create --email "$admin_email" --name Administrator
 fi
 "${compose[@]}" ps -a
-printf '\nDrive Hub is healthy. Open http://<VM-IP>:%s using your configured interface.\n' "$configured_port"
+printf '\nDrive Hub is healthy internally. Shared Nginx must route %s to nuxt-web:3000.\n' "$configured_origin"
 printf 'The session secret and database password are saved privately in %s.\n' "$env_file"
+if [[ "$configured_origin" == http://* ]]; then
+  printf 'HTTP starter mode is active. After shared Nginx TLS is configured, rerun with --https.\n'
+fi

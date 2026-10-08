@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { adminRoutes, authRoutes, userRoutes } from '#shared/constants/routes'
-import { authErrorMessage, safeRedirect } from '~/utils/authPresentation'
+import { loginUserSchema } from '#shared/validation/auth'
+import { authErrorMessage, authFieldErrors, safeRedirect } from '~/utils/authPresentation'
 
 definePageMeta({ layout: 'default', middleware: 'guest' })
 
@@ -12,6 +13,7 @@ useSeoMeta({
 const route = useRoute()
 const credentials = reactive({ email: '', password: '' })
 const formError = ref('')
+const fieldErrors = ref<Record<string, string>>({})
 const { login, mutationStatus } = useAuth()
 const isDevelopment = import.meta.dev
 const developmentAccounts = [
@@ -26,19 +28,29 @@ function fillDevelopmentAccount(email: string) {
   credentials.email = email
   credentials.password = 'DriveHub123!'
   formError.value = ''
+  fieldErrors.value = {}
 }
 
 /** Submits credentials, refreshes the cookie session, then uses a safe redirect. */
 async function submitLogin() {
   formError.value = ''
+  fieldErrors.value = {}
+  const result = loginUserSchema.safeParse(credentials)
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      fieldErrors.value[String(issue.path[0])] ||= issue.message
+    }
+    return
+  }
 
   try {
-    const { user } = await login(credentials)
+    const { user } = await login(result.data)
     await navigateTo(user.role === 'ADMIN'
       ? adminRoutes.dashboard
       : safeRedirect(route.query.redirect, userRoutes.startApplication))
   } catch (error) {
     formError.value = authErrorMessage(error, 'Unable to sign in. Please try again.')
+    fieldErrors.value = authFieldErrors(error)
   }
 }
 </script>
@@ -51,7 +63,7 @@ async function submitLogin() {
     alternative-label="New to Drive Hub?"
     :alternative-to="authRoutes.register"
   >
-    <form class="dh-auth-form" @submit.prevent="submitLogin">
+    <form class="dh-auth-form" novalidate @submit.prevent="submitLogin">
       <header class="dh-auth-form__heading">
         <span>Account access</span>
         <h2>Sign in</h2>
@@ -70,12 +82,14 @@ async function submitLogin() {
 
       <label>
         Email
-        <input v-model.trim="credentials.email" type="email" autocomplete="email" required autofocus>
+        <input v-model.trim="credentials.email" type="email" autocomplete="email" required autofocus :aria-invalid="!!fieldErrors.email" :aria-describedby="fieldErrors.email ? 'login-email-error' : undefined">
+        <span v-if="fieldErrors.email" id="login-email-error" class="dh-auth-form__field-error" role="alert">{{ fieldErrors.email }}</span>
       </label>
 
       <label>
         Password
-        <input v-model="credentials.password" type="password" autocomplete="current-password" required>
+        <input v-model="credentials.password" type="password" autocomplete="current-password" maxlength="128" required :aria-invalid="!!fieldErrors.password" :aria-describedby="fieldErrors.password ? 'login-password-error' : undefined">
+        <span v-if="fieldErrors.password" id="login-password-error" class="dh-auth-form__field-error" role="alert">{{ fieldErrors.password }}</span>
       </label>
 
       <p v-if="formError" class="dh-auth-form__error" role="alert">{{ formError }}</p>
