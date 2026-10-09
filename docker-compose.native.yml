@@ -1,0 +1,6 @@
+services:
+  app:
+    ports:
+      - "127.0.0.1:3050:3000"
+    environment:
+      NUXT_TRUSTED_PROXY_CIDRS: "172.18.0.1/32,172.19.0.1/32"
